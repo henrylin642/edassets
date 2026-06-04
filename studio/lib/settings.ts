@@ -24,8 +24,6 @@ export interface StudioConfig {
   model3dTextureSize: number; // texture px (e.g. 512)
   model3dTextureQuality: "standard" | "detailed";
   model3dPbr: boolean;
-  /** use multi-view (front + side) for more accurate geometry (e.g. flat objects) */
-  model3dMultiview: boolean;
 }
 
 export const DEFAULT_CONFIG: StudioConfig = {
@@ -46,7 +44,6 @@ export const DEFAULT_CONFIG: StudioConfig = {
   model3dTextureSize: 512,
   model3dTextureQuality: "standard",
   model3dPbr: true,
-  model3dMultiview: true,
 };
 
 export async function getConfig(): Promise<StudioConfig> {

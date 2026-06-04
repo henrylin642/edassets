@@ -272,16 +272,12 @@ export async function generate3d(id: string): Promise<Asset> {
       pbr: config.model3dPbr,
     };
 
+    // multiview only when a side view exists for this asset; else single-image
+    const sideBuf = a.hasSideView ? await loadSideView(a.id) : null;
     let glb: Buffer;
     let taskId: string;
-    if (config.model3dMultiview) {
-      // front + AI-generated side view → better thickness/geometry
-      const sideBuf = await generateAltView(imgBuf, "left side", config).catch(() => null);
-      ({ glb, taskId } = await multiviewToModel(
-        sideBuf ? { front: imgBuf, left: sideBuf } : { front: imgBuf },
-        "png",
-        tripoOpts,
-      ));
+    if (sideBuf) {
+      ({ glb, taskId } = await multiviewToModel({ front: imgBuf, left: sideBuf }, "png", tripoOpts));
     } else {
       ({ glb, taskId } = await imageToModel(imgBuf, "png", tripoOpts));
     }
@@ -378,28 +374,14 @@ export async function start3d(a: Asset): Promise<void> {
     const imgBuf = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
     const opts = tripoOptsFromConfig(config);
 
-    // Side view (for multiview): reuse a stored one if present, else generate
-    // via gpt-image-1 and store in DB (display + 3D input — NOT on LiG).
-    let side: Buffer | null = null;
-    let sideErr: string | null = null;
-    if (config.model3dMultiview) {
-      side = a.hasSideView ? await loadSideView(a.id) : null;
-      if (!side) {
-        try {
-          side = await makeSideView(a);
-        } catch (e) {
-          sideErr = e instanceof Error ? e.message : String(e);
-        }
-      }
-    }
+    // Multiview only when a side view exists for this asset (thin/flat objects,
+    // generated manually via the side-view button); otherwise single-image.
+    const side = a.hasSideView ? await loadSideView(a.id) : null;
 
     let taskId: string;
     if (side) {
-      await updateAsset(a.id, { hasSideView: true, sideViewStatus: "done", sideViewError: null });
       taskId = await createMultiviewTask({ front: imgBuf, left: side }, "png", opts);
     } else {
-      // side view unavailable → record why, fall back to single-image 3D
-      if (sideErr) await updateAsset(a.id, { sideViewError: sideErr });
       const token = await tripoUploadImage(imgBuf, "png");
       taskId = await createImageToModelTask(token, "png", opts);
     }

@@ -83,10 +83,8 @@ export default async function SettingsPage() {
             <label className="flex items-center gap-2 pt-6 text-sm">
               <input type="checkbox" name="model3dPbr" defaultChecked={cfg.model3dPbr} /> 啟用 PBR 材質（關閉可縮小檔案）
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="model3dMultiview" defaultChecked={cfg.model3dMultiview} /> 多視圖 3D（正面+側面，形狀更準）
-            </label>
           </div>
+          <p className="text-[11px] text-gray-400">多視圖（側視圖）改為逐物件控制：在物件卡按「🪞 生成側視圖」即用多視圖，否則用單圖。只有薄/扁物件才需要。</p>
           <p className="text-xs text-gray-400">目標 1–3MB：面數 ≤ 30000 + 貼圖 512 + standard。檔案仍偏大時可關閉 PBR。</p>
         </fieldset>
 
