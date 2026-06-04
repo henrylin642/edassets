@@ -30,7 +30,7 @@ import {
 import { buildTags, toTag } from "./prompt";
 import { pngSize, glbFaceCount } from "./meshinfo";
 
-const { scenario, asset, generationJob } = schema;
+const { scenario, asset, generationJob, sideView } = schema;
 
 export type PipelineMode = "review" | "auto";
 
@@ -324,15 +324,30 @@ export async function start3d(a: Asset): Promise<void> {
     const imgBuf = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
     const opts = tripoOptsFromConfig(config);
 
-    // multiview needs >=2 views; if the side view can't be made, fall back to
-    // single-image (a 1-view multiview is rejected by Tripo with 400).
-    const side = config.model3dMultiview
-      ? await generateAltView(imgBuf, "left side", config).catch(() => null)
-      : null;
+    // Side view (for multiview): generate via gpt-image-1, store in DB for
+    // display + 3D input — NOT uploaded to LiG. Surface any error.
+    let side: Buffer | null = null;
+    let sideErr: string | null = null;
+    if (config.model3dMultiview) {
+      try {
+        side = await generateAltView(imgBuf, "left side", config);
+      } catch (e) {
+        sideErr = e instanceof Error ? e.message : String(e);
+      }
+    }
+
     let taskId: string;
     if (side) {
+      const b64 = side.toString("base64");
+      await db
+        .insert(sideView)
+        .values({ assetId: a.id, b64 })
+        .onConflictDoUpdate({ target: sideView.assetId, set: { b64, createdAt: new Date() } });
+      await updateAsset(a.id, { hasSideView: true, sideViewError: null });
       taskId = await createMultiviewTask({ front: imgBuf, left: side }, "png", opts);
     } else {
+      // side view unavailable → record why, fall back to single-image 3D
+      if (sideErr) await updateAsset(a.id, { sideViewError: sideErr });
       const token = await tripoUploadImage(imgBuf, "png");
       taskId = await createImageToModelTask(token, "png", opts);
     }

@@ -19,6 +19,17 @@ export function AssetCard({ a }: { a: Asset }) {
         )}
       </div>
 
+      {a.hasSideView && (
+        <div className="space-y-0.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/sideview/${a.id}`} alt={`${a.nameEn} side`} className="aspect-square w-full rounded bg-gray-50 object-contain" />
+          <div className="text-[10px] text-gray-400">側視圖（3D 用，不上架）</div>
+        </div>
+      )}
+      {a.sideViewError && (
+        <div className="truncate text-[10px] text-amber-600" title={a.sideViewError}>側視圖失敗：{a.sideViewError}</div>
+      )}
+
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium">{a.nameEn}</span>
         <span className="text-xs text-gray-400">{a.nameZh}</span>

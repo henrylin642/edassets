@@ -50,6 +50,13 @@
       "when": 1780564788045,
       "tag": "0006_opposite_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780570587076,
+      "tag": "0007_typical_katie_power",
+      "breakpoints": true
     }
   ]
 }

@@ -121,6 +121,10 @@ export const asset = pgTable(
     modelStatus: modelStatus("model_status").notNull().default("none"),
     /** Tripo task id while a 3D job is in flight (async state machine) */
     modelTaskId: text("model_task_id"),
+    /** side view (for multiview 3D) generated & stored (not on LiG) */
+    hasSideView: boolean("has_side_view").notNull().default(false),
+    /** why side-view generation failed, if it did (surfaced in UI) */
+    sideViewError: text("side_view_error"),
 
     /** captured metrics */
     imageWidth: integer("image_width"),
@@ -162,6 +166,15 @@ export const generationJob = pgTable(
   },
   (t) => [index("job_asset_idx").on(t.assetId)],
 );
+
+// ── side_view (multiview 3D input; stored in DB, NOT uploaded to LiG) ────
+export const sideView = pgTable("side_view", {
+  assetId: uuid("asset_id")
+    .primaryKey()
+    .references(() => asset.id, { onDelete: "cascade" }),
+  b64: text("b64").notNull(), // base64 PNG
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ── app_setting (single-row config for the settings center) ─────────────
 export const appSetting = pgTable("app_setting", {
