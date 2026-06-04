@@ -1,0 +1,1 @@
+ALTER TYPE "public"."asset_status" ADD VALUE 'queued' BEFORE 'generating';

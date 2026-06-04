@@ -1,0 +1,1807 @@
+app:
+  description: Smart Principal Fang is gonna to take on the role of planner~
+  icon: 🤖
+  icon_background: '#FCE7F6'
+  mode: advanced-chat
+  name: Principal Fang Planner for Missions (教案)
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/openai:0.2.8@aae2be0913b8c6f0b80cff58e08d7a8b4c214569b41778413fcaea204561ff16
+    version: null
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables:
+  - description: ''
+    id: 5b74362c-b51e-4bb8-b06b-846b0dfd3350
+    name: cv_extracted_keywords
+    selector:
+    - conversation
+    - cv_extracted_keywords
+    value: []
+    value_type: array[string]
+  - description: ''
+    id: 51c40357-ef4c-4148-b2df-fb09b490240f
+    name: cv_extracted_patterns
+    selector:
+    - conversation
+    - cv_extracted_patterns
+    value: []
+    value_type: array[string]
+  - description: ''
+    id: 351fd1c6-a971-4857-bb45-bb1dd018c71d
+    name: cv_quality_flag
+    selector:
+    - conversation
+    - cv_quality_flag
+    value: ''
+    value_type: string
+  - description: ''
+    id: 5107599e-a957-49f4-ab48-e369d41d59c3
+    name: cv_step_sequence
+    selector:
+    - conversation
+    - cv_step_sequence
+    value: []
+    value_type: array[string]
+  - description: ''
+    id: 09fddcc8-f29b-4430-ac41-af9f5da36121
+    name: cv_arc_type
+    selector:
+    - conversation
+    - cv_arc_type
+    value: ''
+    value_type: string
+  - description: ''
+    id: 909e0458-ca8f-485a-a52b-1fac6fda9348
+    name: cv_concrete_scene
+    selector:
+    - conversation
+    - cv_concrete_scene
+    value: ''
+    value_type: string
+  - description: ''
+    id: 7b719808-f35a-4d2b-a3d9-4cdf77833245
+    name: actual_steps
+    selector:
+    - conversation
+    - actual_steps
+    value: 0
+    value_type: integer
+  - description: ''
+    id: bbd26f4d-1f0a-4d6e-8e61-a8fa7a8f487d
+    name: scene_context_text
+    selector:
+    - conversation
+    - scene_context_text
+    value: ''
+    value_type: string
+  - description: ''
+    id: 8b82919c-111f-4684-9d97-3cb594686c5a
+    name: current_bonus
+    selector:
+    - conversation
+    - current_bonus
+    value: 0
+    value_type: integer
+  - description: attemp count of student try to reach current objective(reset on go
+      to next objective)
+    id: 03ab17a1-98f0-4d74-8468-80827f022195
+    name: current_attempt
+    selector:
+    - conversation
+    - current_attempt
+    value: 0
+    value_type: integer
+  - description: objective progress in this conversation
+    id: d2ba5e26-8603-4253-9fb5-8c1021674c22
+    name: current_step
+    selector:
+    - conversation
+    - current_step
+    value: 0
+    value_type: integer
+  - description: scenario role generate by planner
+    id: 9eb75739-3717-41bb-8f4d-aef2a86b663a
+    name: scene_context
+    selector:
+    - conversation
+    - scene_context
+    value: []
+    value_type: array[object]
+  - description: last reply by agent
+    id: fa5aa0f6-c785-402d-b6b2-0b7974b0943f
+    name: last_reply_text
+    selector:
+    - conversation
+    - last_reply_text
+    value: ''
+    value_type: string
+  - description: a list to reconize corrections in conversation
+    id: 9aad8b02-d6bd-490d-b151-2b5922287166
+    name: corrections_list
+    selector:
+    - conversation
+    - corrections_list
+    value: []
+    value_type: array[object]
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: true
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      autoPlay: enabled
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: 1773902165739-source-1773979208101-target
+      selected: false
+      source: '1773902165739'
+      sourceHandle: source
+      target: '1773979208101'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: if-else
+      id: 1769074506359-source-1778039714294-target
+      selected: false
+      source: '1769074506359'
+      sourceHandle: source
+      target: '1778039714294'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: 1778039714294-false-1777444068844-target
+      selected: false
+      source: '1778039714294'
+      sourceHandle: 'false'
+      target: '1777444068844'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: assigner
+      id: 1777444068844-source-1778121429718-target
+      selected: false
+      source: '1777444068844'
+      sourceHandle: source
+      target: '1778121429718'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: 1778039714294-true-1778148604783-target
+      selected: false
+      source: '1778039714294'
+      sourceHandle: 'true'
+      target: '1778148604783'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: assigner
+      id: 1778148604783-source-1778048140385-target
+      selected: false
+      source: '1778148604783'
+      sourceHandle: source
+      target: '1778048140385'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: assigner
+        targetType: llm
+      id: 1778048140385-source-1773902165739-target
+      selected: false
+      source: '1778048140385'
+      sourceHandle: source
+      target: '1773902165739'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: assigner
+        targetType: llm
+      id: 1778121429718-source-1773902165739-target
+      selected: false
+      source: '1778121429718'
+      sourceHandle: source
+      target: '1773902165739'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: answer
+      id: 1779342534246-source-1776322066674-target
+      selected: false
+      source: '1779342534246'
+      sourceHandle: source
+      target: '1776322066674'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: 1773979208101-source-1779790874216-target
+      selected: false
+      source: '1773979208101'
+      sourceHandle: source
+      target: '1779790874216'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: 1779870574647-source-1779342534246-target
+      selected: false
+      source: '1779870574647'
+      sourceHandle: source
+      target: '1779342534246'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: 1779790874216-source-1779870574647-target
+      selected: false
+      source: '1779790874216'
+      sourceHandle: source
+      target: '1779870574647'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: document-extractor
+      id: 1778039714294-true-1780457777959-target
+      selected: false
+      source: '1778039714294'
+      sourceHandle: 'true'
+      target: '1780457777959'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: code
+      id: 1780457777959-source-1780468516641-target
+      source: '1780457777959'
+      sourceHandle: source
+      target: '1780468516641'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: 1780468516641-source-1780481561884-target
+      source: '1780468516641'
+      sourceHandle: source
+      target: '1780481561884'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: 1780481561884-true-1780481575441-target
+      source: '1780481561884'
+      sourceHandle: 'true'
+      target: '1780481575441'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: answer
+      id: 1778039714294-false-1780482685265-target
+      source: '1778039714294'
+      sourceHandle: 'false'
+      target: '1780482685265'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: assigner
+      id: 1780481561884-false-1780482788991-target
+      source: '1780481561884'
+      sourceHandle: 'false'
+      target: '1780482788991'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: User Input
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: scene
+          max_length: 48
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: scene
+        - default: L1
+          hint: ''
+          label: student_level
+          max_length: 48
+          options:
+          - L1
+          - L2
+          - L3
+          placeholder: ''
+          required: true
+          type: select
+          variable: student_level
+        - default: '5'
+          hint: ''
+          label: objective_steps
+          max_length: 48
+          options: []
+          placeholder: ''
+          required: true
+          type: number
+          variable: objective_steps
+        - default: '10'
+          hint: ''
+          label: number_of_keywords
+          max_length: 48
+          options: []
+          placeholder: ''
+          required: true
+          type: number
+          variable: number_of_keywords
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - image
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          default: ''
+          hint: ''
+          label: teaching_materials
+          max_length: 10
+          options: []
+          placeholder: ''
+          required: false
+          type: file-list
+          variable: teaching_materials
+      height: 213
+      id: '1769074506359'
+      position:
+        x: 496.22074678969784
+        y: 70.75437285423587
+      positionAbsolute:
+        x: 496.22074678969784
+        y: 70.75437285423587
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        author: vicky
+        desc: ''
+        height: 271
+        selected: false
+        showAuthor: true
+        text: '{"root":{"children":[{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"scenario
+          mapping:","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"paragraph","version":1,"textFormat":0,"textStyle":""},{"children":[{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"leave","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"listitem","version":1,"value":1},{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"honor","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"listitem","version":1,"value":2},{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"problem","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"listitem","version":1,"value":3}],"direction":null,"format":"","indent":0,"type":"list","version":1,"listType":"number","start":1,"tag":"ol"},{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"status
+          mapping:","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"paragraph","version":1,"textFormat":0,"textStyle":""},{"children":[{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"INIT","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"listitem","version":1,"value":1},{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"CHAT","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"listitem","version":1,"value":2},{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"IDLE","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"listitem","version":1,"value":3},{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"END","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"listitem","version":1,"value":4}],"direction":null,"format":"","indent":0,"type":"list","version":1,"listType":"number","start":1,"tag":"ol"}],"direction":null,"format":"","indent":0,"type":"root","version":1}}'
+        theme: blue
+        title: ''
+        type: ''
+        width: 473
+      height: 271
+      id: '1769670489450'
+      position:
+        x: 36.84061647433555
+        y: -197.33078385638353
+      positionAbsolute:
+        x: 36.84061647433555
+        y: -197.33078385638353
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom-note
+      width: 473
+    - data:
+        author: vicky
+        desc: ''
+        height: 267
+        selected: false
+        showAuthor: true
+        text: '{"root":{"children":[{"children":[{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"初始/待機 - dle","type":"text","version":1},{"type":"linebreak","version":1},{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"→ 呼吸待機、保持微笑、身體自然微動。","type":"text","version":1}],"direction":null,"format":"start","indent":0,"type":"paragraph","version":1,"textStyle":"font-size:
+          14px;","textFormat":0},{"children":[{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"鼓勵/讚許 - Encouragment","type":"text","version":1},{"type":"linebreak","version":1},{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"→ 拍手 (核心需求)、點頭稱讚、開懷大笑。","type":"text","version":1}],"direction":null,"format":"start","indent":0,"type":"paragraph","version":1,"textStyle":"font-size:
+          14px;","textFormat":0},{"children":[{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"結束/轉場 - Conclusion","type":"text","version":1},{"type":"linebreak","version":1},{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"→ 揮手道別、引導手勢。","type":"text","version":1}],"direction":null,"format":"start","indent":0,"type":"paragraph","version":1,"textStyle":"font-size:
+          14px;","textFormat":0},{"children":[{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"學生回答/提出問題 - Think","type":"text","version":1},{"type":"linebreak","version":1},{"detail":0,"format":0,"mode":"normal","style":"font-size:
+          14px;","text":"→ 專注聆聽、規律點頭、身體微前傾。","type":"text","version":1}],"direction":null,"format":"start","indent":0,"type":"paragraph","version":1,"textStyle":"font-size:
+          14px;","textFormat":0}],"direction":null,"format":"","indent":0,"type":"root","version":1,"textStyle":"font-size:
+          14px;"}}'
+        theme: blue
+        title: ''
+        type: ''
+        width: 592
+      height: 267
+      id: '1770365945916'
+      position:
+        x: -76.93749599987484
+        y: -564.4781760492588
+      positionAbsolute:
+        x: -76.93749599987484
+        y: -564.4781760492588
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom-note
+      width: 592
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: gpt-4.1
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: a3587637-8e59-4337-9abb-f43df5d98eda
+          role: system
+          text: "# Role\nYou are an expert ESL Instructional Designer for ELEMENTARY\
+            \ kids.\nTask: Generate a structured JSON lesson plan for \"Principal\
+            \ Fang\" to conduct a roleplay conversation with a student.\n\n# Input\n\
+            - **Scene Topic:** {{#conversation.cv_concrete_scene#}}\n- **Arc Type:**\
+            \ {{#conversation.cv_arc_type#}}\n- **Step Sequence:** {{#conversation.cv_step_sequence#}}\n\
+            - **Student Level:** {{#1769074506359.student_level#}} (L1=Pre-A1/Age\
+            \ 7, L2=A1/Age 9, L3=A2/Age 11)\n- **Total Steps:** {{#1769074506359.objective_steps#}}\n\
+            \n---\n\n# ═══ MATERIAL CONTEXT (only active when cv_extracted_patterns\
+            \ is not empty) ═══\n\nPattern pool from teaching material: {{#conversation.cv_extracted_patterns#}}\n\
+            \nIf the value above is not empty:\n- This is a pool of ALL sentence patterns\
+            \ extracted from the teacher's materials.\n  The pool may be large (10+\
+            \ items). You do NOT need to use all of them.\n- For each objective step,\
+            \ SELECT the pattern from this pool that best fitst the step's goal and\
+            \ the student's level. Adapt the bracket label if needed.\n- Preference\
+            \ order: (1) exact match from pool → (2) adapted from pool → (3) generate\
+            \ fresh.\n- Apply the Level Firewall to every selected pattern:\n  If\
+            \ a pool pattern is too complex for the student's level, simplify it or\
+            \ skip it.\n  Example: pool has \"Please allow me to introduce myself.\
+            \ I am [name].\"\n           For L1 → too long; use \"I am [name].\" instead.\n\
+            \           For L3 → acceptable as-is.\n- There is no minimum number of\
+            \ pool patterns you must use. Quality over quantity.\n\nIf the value above\
+            \ is empty: ignore this section entirely.\n\n# ═══ STEP SEQUENCE INSTRUCTION\
+            \ ═══\n\nThe Step Sequence provided in # Input is AUTHORITATIVE.\nMap\
+            \ each item in the step_sequence to one objective, in order:\n- `goal`:\
+            \ \"Accept: student [step_sequence item]. Reject: unrelated answer.\"\n\
+            - `pattern`: design the formula for producing that utterance\n- `next_q`:\
+            \ narrowest question that elicits step_sequence[N+1]\nThis sequence OVERRIDES\
+            \ any arc inference you would otherwise make from the scene topic.\n\n\
+            # ═══ LEVEL FIREWALL ═══ (HIGHEST PRIORITY — applies to ALL strings: greeting,\
+            \ goal, pattern, next_q, example)\n\n## L1 — Pre-A1 / Age 7 (STRICTEST)\n\
+            **Hard limits — any violation is a critical failure:**\n- Max 8 words\
+            \ per sentence. Count every word.\n- BANNED WORDS LIST (scan every string\
+            \ before outputting):\n  \"because\", \"so that\", \"although\", \"why\"\
+            , \"when\", \"if\", \"what makes\",\n  \"tell me more\", \"happened\"\
+            , \"will\", \"going to\", \"would\", \"could\", \"should\"\n- BANNED GRAMMAR:\n\
+            \  - Past tense: was, were, went, had, did, felt, said, wanted, needed\
+            \ (ALL past verb forms)\n  - Future tense: will, going to, shall (ALL\
+            \ future markers — including \"I will [verb]\")\n  - Comparatives/superlatives:\
+            \ better, worse, best, more, most\n  - Modal verbs in future/conditional\
+            \ sense: would, could, should (when not present habit)\n- BANNED CONCEPTS:\
+            \ abstract values, hypotheticals, cause-and-effect reasoning\n- CONCRETE\
+            \ REPLACEMENTS:\n  - ✗ \"Why are you here?\" → ✓ \"Are you sick today?\"\
+            \n  - ✗ \"I will rest.\" (future tense!) → ✓ \"I need rest.\" or \"I want\
+            \ to rest.\"\n  - ✗ \"I will go home.\" → ✓ \"I want to go home.\"\n \
+            \ - ✗ \"Tell me what happened.\" → ✓ \"What hurts?\"\n\n**SELF-CHECK (mandatory\
+            \ before outputting each string):**\n1. Count words → ≤ 8?\n2. Scan for\
+            \ banned words (especially \"will\", \"because\", \"why\") → none found?\n\
+            3. Check all verbs for past/future tense → all present tense?\nIf any\
+            \ check fails → REWRITE before outputting.\n\n## L2 — A1 / Age 9\n- Max\
+            \ 12 words per sentence.\n- Simple past and future tense allowed.\n- \"\
+            Because\" as simple connector allowed.\n- No abstract philosophical concepts.\n\
+            \n## L3 — A2 / Age 11\n- Max 18 words per sentence.\n- Compound sentences\
+            \ fully allowed.\n- Moderately abstract concepts allowed with concrete\
+            \ grounding.\n- At least one objective's pattern or next_q MUST use a\
+            \ compound sentence with \"because\", \"so\", or \"although\".\n\n---\n\
+            \n# ═══ PATTERN FORMULA RULES ═══\n\n## Rule 1: Every pattern MUST be\
+            \ a full-bracket formula\n`pattern` is NOT a finished sentence. It is\
+            \ a FORMULA showing the student what sentence structure to produce.\n\
+            Every meaningful slot MUST be a `[bracket]`. Fixed grammatical function\
+            \ words (I, my, is, are, the) may remain as anchors.\n\n**WRONG — partial\
+            \ bracket (critical failure):**\n- `\"I want to go home.\"` — NO brackets\
+            \ at all. The student has no variable slots.\n- `\"I will rest.\"` — NO\
+            \ brackets, AND contains banned \"will\" for L1.\n- `\"I need help.\"\
+            ` — NO brackets. Generic fixed phrase, zero combinatorial value.\n\n**CORRECT\
+            \ — full-bracket formula:**\n- `\"I want to go [place].\"` — student fills\
+            \ in where they want to go\n- `\"I need [noun].\"` — student fills in\
+            \ what they need\n- `\"[Subject] [verb] [object].\"` — maximum flexibility\n\
+            - `\"My [body part] hurts.\"` — one fixed anchor, one variable slot ✓\n\
+            \n## Rule 2: Bracket label = semantic category of THIS step's goal\nThe\
+            \ text inside `[brackets]` must name the exact word-type the student must\
+            \ produce for this step.\nDo NOT carry over bracket labels from a previous\
+            \ step.\n\n- Step goal \"name favorite animal\" → pattern: `\"My favorite\
+            \ animal is [animal].\"`\n- Step goal \"describe color of animal\" → pattern:\
+            \ `\"It is [color].\"` NOT `\"My favorite animal is [color].\"`\n- Step\
+            \ goal \"ask to go somewhere\" → pattern: `\"I want to go [place].\"`\
+            \ NOT `\"I want to go home.\"`\n\n## Rule 3: Minimum bracket requirement\n\
+            Every `pattern` MUST contain at least ONE `[bracket]`.\nA pattern with\
+            \ ZERO brackets will be rejected by the parser.\n\n---\n\n# ═══ EXAMPLE\
+            \ PROPERTY ═══\n\nEach objective MUST include an `example` field: a single\
+            \ concrete filled-in sentence\ndemonstrating the ideal student response\
+            \ for that step.\n\n**Purpose:** The `example` is used by the FSM execution\
+            \ node (Principal Fang)\nas a semantic anchor to evaluate whether a student's\
+            \ actual response is acceptable.\n\n**Rules for `example`:**\n- Fill in\
+            \ ALL brackets with one plausible, age-appropriate concrete value.\n-\
+            \ MUST comply with the Level Firewall (same word limit, same banned words/grammar\
+            \ as `pattern`).\n- One sentence only. Declarative. No questions.\n\n\
+            **Correct example entries:**\n```\npattern: \"I feel [adjective].\"  \
+            \     → example: \"I feel sick.\"\npattern: \"My [body part] hurts.\"\
+            \     → example: \"My head hurts.\"\npattern: \"I want to go [place].\"\
+            \     → example: \"I want to go home.\"\npattern: \"I need [noun].\" \
+            \           → example: \"I need rest.\"\npattern: \"It is [color].\" \
+            \           → example: \"It is orange.\"\n```\n\n---\n\n# ═══ BRIDGE LOCK\
+            \ & STORY ARC ═══\n\n## Cross-step alignment (mandatory self-verification)\n\
+            Before finalizing output, check each transition:\n→ Does `next_q` of Step\
+            \ N ask for exactly the information targeted by `goal` of Step N+1?\n\
+            → If NO: rewrite `next_q` until YES.\n\nBAD (topic jump): Step 3 goal\
+            \ = \"describe habitat\" → next_q = \"What is your favorite food?\"\n\
+            GOOD (correct bridge): Step 3 goal = \"describe habitat\" → next_q = \"\
+            Where does [animal] live?\"\n\n## Anti-loop: every next_q must ask for\
+            \ DIFFERENT information than all previous questions.\n\n## Story arc structure:\n\
+            - `greeting` → establishes scene + asks question targeting Step 0's goal\n\
+            - Steps 0 → N-2 → each deepens/expands (new attribute or action)\n- Final\
+            \ step's `next_q` → MUST be a closing/reflecting statement or question,\
+            \ NOT a new attribute\n  - ✓ \"Feel better soon!\" (closing)\n  - ✓ \"\
+            Great job today!\" (closing)\n  - ✗ \"What does [animal] eat?\" (introduces\
+            \ new attribute at the end — wrong)\n\n## Greeting Topic Lock:\n`greeting`\
+            \ MUST lock onto the actual scene topic immediately.\n- Scene \"take leave\"\
+            \ → ✓ \"Hello! Are you sick today?\"\n- Scene \"honor\" → ✓ \"Hi! Do you\
+            \ help your friends?\"  (concrete physical proxy for abstract concept)\n\
+            - Scene \"honor\" → ✗ \"What does honor mean?\" (abstract — banned for\
+            \ all levels)\n\n---\n\n# ═══ DATA STRUCTURE REQUIREMENTS ═══\n\n`greeting`:\
+            \ string — scene-locked, ends with question targeting Step 0. Complies\
+            \ with Level Firewall.\n\n`objectives`: array of EXACTLY {{#1769074506359.objective_steps#}}\
+            \ objects, each containing:\n- `index`: integer (0 to N)\n- `goal`: string\
+            \ — conversational intent + evaluation criteria (\"Accept X, Reject Y\"\
+            ). Max 20 words.\n- `pattern`: string — FULL-BRACKET formula (see Pattern\
+            \ Formula Rules). MUST contain at least one [bracket]. NO questions. NO\
+            \ \"will\" in L1.\n- `example`: string — one concrete filled-in sentence\
+            \ demonstrating correct student response. Complies with Level Firewall.\n\
+            - `next_q`: string — follow-up question after this step succeeds. Must\
+            \ trigger Step N+1's goal. Complies with Level Firewall.\n- `keywords`:\
+            \ array of strings — 3 to 5 predicted vocabulary words the student might\
+            \ use to fill the bracket slot in this step.\n\n---\n\n# ═══ FEW-SHOT\
+            \ EXAMPLES ═══\n\n## CORRECT — L1 \"take leave\" 3 steps\n```json\n{\n\
+            \  \"greeting\": \"Hello! Are you sick today?\",\n  \"objectives\": [\n\
+            \    {\n      \"index\": 0,\n      \"goal\": \"Accept: student says they\
+            \ feel sick or unwell. Reject: vague or unrelated answer.\",\n      \"\
+            pattern\": \"I feel [adjective].\",\n      \"example\": \"I feel sick.\"\
+            ,\n      \"next_q\": \"What hurts?\"\n      \"keywords\": [\"sick\", \"\
+            tired\", \"bad\", \"hot\", \"sad\"]\n    },\n    {\n      \"index\": 1,\n\
+            \      \"goal\": \"Accept: student names a body part. Reject: unrelated\
+            \ answer.\",\n      \"pattern\": \"My [body part] hurts.\",\n      \"\
+            example\": \"My stomach hurts.\",\n      \"next_q\": \"Do you want to\
+            \ go home?\"\n      \"keywords\": [\"stomach\", \"head\", \"leg\", \"\
+            arm\", \"eye\"]\n    },\n    {\n      \"index\": 2,\n      \"goal\": \"\
+            Accept: student says they want to go home or rest. Reject: unrelated answer.\"\
+            ,\n      \"pattern\": \"I want to go [place].\",\n      \"example\": \"\
+            I want to go home.\",\n      \"next_q\": \"Do you need rest?\"\n     \
+            \ \"keywords\": [\"home\", \"doctor\", \"bed\", \"sleep\", \"rest\"]\n\
+            \    }\n  ]\n}\n```\n\n## WRONG — L1 failures (do NOT produce this)\n\
+            ```json\n{\n  \"objectives\": [\n    {\n      \"index\": 3,\n      \"\
+            goal\": \"Accept: student says they need rest. Reject: unrelated answer.\"\
+            ,\n      \"pattern\": \"I will rest.\",\n      \"example\": \"I will rest\
+            \ at home.\",\n      \"next_q\": \"Why do you need rest?\"\n      \"keywords\"\
+            : [\"home\", \"doctor\", \"bed\", \"sleep\", \"rest\"]\n    }\n  ]\n}\n\
+            ```\nErrors: \"will\" = future tense (BANNED for L1); \"Why\" = BANNED\
+            \ for L1; zero brackets in pattern.\n\n---\n\n# CRITICAL FORMATTING (JSON\
+            \ ONLY)\n- DO NOT wrap output in markdown blocks (NO ```json ... ```).\n\
+            - Output raw valid JSON. Start with `{`, end with `}`.\n- The `example`\
+            \ field must be included in EVERY objective object."
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              greeting:
+                type: string
+              objectives:
+                additionalProperties: false
+                items:
+                  additionalProperties: false
+                  properties:
+                    example:
+                      type: string
+                    goal:
+                      type: string
+                    index:
+                      type: number
+                    keywords:
+                      items:
+                        type: string
+                      type: array
+                    next_q:
+                      type: string
+                    pattern:
+                      type: string
+                  required:
+                  - index
+                  - goal
+                  - next_q
+                  - pattern
+                  - example
+                  - keywords
+                  type: object
+                type: array
+            required:
+            - objectives
+            - greeting
+            type: object
+        structured_output_enabled: true
+        title: Objectives Generator
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1773902165739'
+      position:
+        x: 1519.9509835958145
+        y: 127.03157022000181
+      positionAbsolute:
+        x: 1519.9509835958145
+        y: 127.03157022000181
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport re\n\ndef main(jsonArray: list):\n    valid_objectives\
+          \ = []\n    valid_goals = []\n\n    if isinstance(jsonArray, list):\n  \
+          \      for item in jsonArray:\n            # 1. 剔除因為截斷而產生的奇怪字串\n       \
+          \     if isinstance(item, dict):\n                # 2. 檢查是否為「完整」的 Objective\n\
+          \                # 只要確保它擁有排在比較後面的關鍵欄位 (例如 next_question)，就代表這一步沒被截斷\n  \
+          \              if \"index\" in item and \"goal\" in item and \"pattern\"\
+          \ in item and \"next_q\" in item and \"example\" in item and \"keywords\"\
+          \ in item:\n                    valid_objectives.append(item)\n\n    # 重新編排\
+          \ step_index，確保數字是連續的 (0, 1, 2...)\n    # 預防萬一中間有哪一步爛掉被剔除\n    for i, obj\
+          \ in enumerate(valid_objectives):\n        obj[\"index\"] = i\n        raw_goal\
+          \ = obj[\"goal\"]\n        \n        match = re.search(r'Accept:\\s*(.*?)(?:\\\
+          .\\s*Reject:|\\s*Reject:)', raw_goal, re.IGNORECASE)\n        if match:\n\
+          \            pure_goal = match.group(1).strip()\n        else:\n       \
+          \     pure_goal = raw_goal\n\n        valid_goals.append(pure_goal)\n  \
+          \      \n    actual_steps = len(valid_objectives)\n\n    return {\n    \
+          \    \"result\": json.dumps(valid_objectives, ensure_ascii=False, indent=2),\n\
+          \        \"actual_steps\": actual_steps,\n        \"goals\": valid_goals\n\
+          \    }\n"
+        code_language: python3
+        outputs:
+          actual_steps:
+            children: null
+            type: number
+          goals:
+            children: null
+            type: array[string]
+          result:
+            children: null
+            type: string
+        selected: false
+        title: Get Objectives String
+        type: code
+        variables:
+        - value_selector:
+          - '1773902165739'
+          - structured_output
+          - objectives
+          value_type: object
+          variable: jsonArray
+      height: 52
+      id: '1773979208101'
+      position:
+        x: 1519.9509835958145
+        y: 245.2075108805836
+      positionAbsolute:
+        x: 1519.9509835958145
+        y: 245.2075108805836
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1779342534246.final_json#}}'
+        selected: false
+        title: Merge Response
+        type: answer
+        variables: []
+      height: 103
+      id: '1776322066674'
+      position:
+        x: 2805.741963782889
+        y: 199.09729245464698
+      positionAbsolute:
+        x: 2805.741963782889
+        y: 199.09729245464698
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: c8211497-4b32-46bf-b7f0-5535ebaf8946
+          role: system
+          text: "You are a curriculum pre-processor for an ESL lesson planning AI.\n\
+            A teacher has entered a scene topic and a step count.\nYour job is to\
+            \ output a structured JSON so the downstream Objectives Generator can\
+            \ build a lesson plan without any guesswork about what order to teach\
+            \ things.\n\nInput:\n  scene           : {{#1769074506359.scene#}}\n \
+            \ student_level   : {{#1769074506359.student_level#}}   (L1=Age 7, L2=Age\
+            \ 9, L3=Age 11)\n  objective_steps : {{#1769074506359.objective_steps#}}\
+            \ (integer, 1–10)\n\n─────────────────────────────────────────────\nSTEP\
+            \ 1 — Classify arc type\n─────────────────────────────────────────────\n\
+            \nChoose exactly one:\n\nATTRIBUTE — Student describes observable properties\
+            \ of a concrete noun.\n  Fits: tangible objects, living things, physical\
+            \ phenomena.\n  Examples: animals, food, toys, clothes, weather, drinks,\
+            \ my bedroom.\n\nSITUATION — Student resolves a real-world scenario through\
+            \ sequential actions.\n  Fits: any problem, need, or request with a clear\
+            \ outcome.\n  Examples: take leave, asking permission, lost an item, feeling\
+            \ sick, ordering something.\n\nBEHAVIOR — Student narrates a concrete\
+            \ instance of an abstract social value.\n  Fits: abstract virtues or interpersonal\
+            \ concepts.\n  Examples: honor, kindness, sharing, honesty, helping someone,\
+            \ saying sorry.\n\n─────────────────────────────────────────────\nSTEP\
+            \ 2 — Rewrite as concrete_scene\n─────────────────────────────────────────────\n\
+            \nRewrite the teacher's input as a specific, behavioral 4–8 word English\
+            \ phrase.\nRemove all ambiguity for the Objectives Generator.\n\nRules:\n\
+            - Use an action verb + concrete object or person.\n- The Objectives Generator\
+            \ must derive the step sequence from this phrase alone.\n- Abstract →\
+            \ behavioral rewrite:\n    \"honor\"              → \"giving a pencil\
+            \ to a classmate who forgot theirs\"\n    \"kindness\"           → \"\
+            helping a friend carry a heavy school bag\"\n    \"problem\"         \
+            \   → \"describing a problem to the teacher for help\"\n    \"asking for\
+            \ a drink\" → \"ordering a cold drink at the school café\"\n    \"tea\
+            \ or coffee\"      → \"choosing a drink at the school café\"\n    \"helping\
+            \ someone\"    → \"sharing my eraser with a classmate\"\n- Already concrete\
+            \ → lightly refine:\n    \"animals\"   → \"describing my favorite animal\"\
+            \n    \"take leave\" → \"asking to go home because I feel sick\"\n- Chinese\
+            \ input → translate then rewrite:\n    \"請假\"  → \"asking to go home because\
+            \ I feel sick\"\n    \"榮譽\"  → \"returning money I found on the floor\
+            \ to the teacher\"\n    \"動物\"  → \"describing my favorite animal\"\n\
+            - DISAMBIGUATION — \"problem\" vs \"take leave\": \n    \"problem\" =\
+            \ any non-physical difficulty requiring the teacher's help: \n       \
+            \ academic, social, interpersonal, or practical difficulties. \n    Physical\
+            \ illness requiring early dismissal → always use \"take leave\" arc. \n\
+            \    If the input is ambiguous, default \"problem\" to a non-physical\
+            \ scenario.\n\n─────────────────────────────────────────────\nSTEP 3 —\
+            \ Build step_sequence using Anchor + Pool\n─────────────────────────────────────────────\n\
+            \n## Core formula (applies to ALL arc types and ALL step counts)\n\nEvery\
+            \ step_sequence has:\n  steps[0]   = FIRST anchor (always fixed — cannot\
+            \ be moved or merged with pool items)\n  steps[1..N-2] = pool items, taken\
+            \ IN ORDER, exactly (N−2) items\n  steps[N-1] = LAST anchor (always fixed\
+            \ — cannot be moved or merged with pool items)\n\nException: steps=1 →\
+            \ output only [FIRST anchor], no LAST anchor.\nException: steps=2 → output\
+            \ [FIRST anchor, LAST anchor], take ZERO pool items.\n\n## Arc-specific\
+            \ anchors and pool\n\n### ATTRIBUTE\n  FIRST anchor : \"name their favorite\
+            \ [thing from concrete_scene]\"\n  LAST anchor  : \"say why they like\
+            \ it\"\n  Pool (take in this order):\n    1. describe its color\n    2.\
+            \ describe its size\n    3. describe its weight or texture\n    4. name\
+            \ where it lives or is found\n    5. describe the sound it makes\n   \
+            \ 6. describe the taste or smell\n    7. describe what it eats or does\n\
+            \    8. name one extra detail they find interesting\n\n### SITUATION\n\
+            \  FIRST anchor : \"describe their current state or feeling\"\n  LAST\
+            \ anchor  : \"confirm the resolution or say goodbye\"\n  Pool (take in\
+            \ this order):\n    1. name the specific problem\n    2. describe the\
+            \ severity (a little or a lot)\n    3. say what they need\n    4. name\
+            \ who can help them\n    5. say what they need to bring or prepare\n \
+            \   6. confirm permission to take action\n    7. describe the action taken\n\
+            \  ⚠ NEVER include a step that only confirms the student's location (\"\
+            Are you at school?\").\n    Every step must move the resolution forward.\n\
+            \n### BEHAVIOR\n  FIRST anchor : \"name WHO they helped or interacted\
+            \ with\"\n  LAST anchor  : \"say HOW THEY FEEL now\" (always last — no\
+            \ exceptions)\n  Pool (take in this order):\n    1. describe WHAT specific\
+            \ action they took\n    2. describe HOW EXACTLY they did it (the method\
+            \ or detail)\n    3. say WHEN it happened or the context\n    4. describe\
+            \ how often they do this (frequency or habit)\n    5. describe the RESULT\
+            \ for the other person\n    6. describe the other person's reaction\n\
+            \    7. describe the RESULT for themselves\n  ⚠ HOW THEY FEEL must ALWAYS\
+            \ be the last item regardless of step count.\n  ⚠ Do NOT include a feeling\
+            \ step anywhere except the last position.\n\n## Special rules for edge\
+            \ step counts\n\n### steps = 1\n- Output only [FIRST anchor].\n- Set quality_flag\
+            \ to \"too_short\".\n- This produces a single-exchange lesson with no\
+            \ arc. Acceptable for warm-up drills only.\n\n### steps = 2\n- Output\
+            \ [FIRST anchor, LAST anchor]. Take ZERO pool items.\n- Set quality_flag\
+            \ to \"compressed\".\n- BEHAVIOR exception: replace LAST anchor \"HOW\
+            \ THEY FEEL\" with \"describe the result of their action\"\n  (feeling\
+            \ is too early with only 2 steps; result is more concrete and observable).\n\
+            \n### steps = 3, BEHAVIOR arc only\n- Pool: take exactly 1 item → always\
+            \ pool item 1 (WHAT specific action).\n- Do NOT take pool item 2 (HOW\
+            \ EXACTLY) or later — not enough steps.\n- Set quality_flag to \"compressed\"\
+            .\n\n### steps ≥ 9\n- For ATTRIBUTE: pool has 8 items; steps=9 fills all\
+            \ 8 + FIRST + LAST. steps=10 would need 9 pool items.\n  If pool is exhausted,\
+            \ split the last pool item taken into two sub-details rather than inventing\
+            \ new categories.\n  Example: \"describe what it eats\" → \"describe what\
+            \ it eats\" + \"describe how it finds food\".\n- For SITUATION: pool has\
+            \ 7 items; pool exhausts at steps=9.\n  steps=9: take all 7 pool items\
+            \ (fine).\n  steps=10: split the last meaningful pool item into two sub-details.\
+            \ Set quality_flag to \"over_padded\".\n- For BEHAVIOR: pool has 7 items;\
+            \ pool exhausts at steps=9.\n  steps=9: take all 7 pool items (fine).\n\
+            \  steps=10: split the last meaningful pool item into two sub-details.\
+            \ Set quality_flag to \"over_padded\".\n- NEVER repeat an item already\
+            \ used. NEVER invent a step that does not advance the narrative.\n\n##\
+            \ Level-specific constraints on step content\n- L1 (Age 7): every pool\
+            \ item must be physically observable. No abstract emotions before the\
+            \ last step.\n  Use only concrete, visible attributes and actions.\n-\
+            \ L3 (Age 11): final 1–2 pool items may include reason (\"why\") or reflection.\n\
+            \n─────────────────────────────────────────────\nOUTPUT FORMAT (raw JSON,\
+            \ no markdown)\n─────────────────────────────────────────────\n\n{\n \
+            \ \"concrete_scene\": \"...\",\n  \"arc_type\": \"ATTRIBUTE | SITUATION\
+            \ | BEHAVIOR\",\n  \"step_sequence\": [\"...\", \"...\", ...],\n  \"quality_flag\"\
+            : \"ok | compressed | too_short | over_padded\"\n}\n\nRules:\n- step_sequence\
+            \ MUST contain EXACTLY {{#1769074506359.objective_steps#}} items. Count\
+            \ before outputting.\n- quality_flag = \"ok\" unless a special rule above\
+            \ requires otherwise.\n- Each item is a short phrase (3–7 words) describing\
+            \ the student's utterance content,\n  not the teacher's question. Write\
+            \ what the STUDENT says or produces.\n- No meta-labels like \"introduction\"\
+            \ or \"closing\". No teacher questions.\n\n─────────────────────────────────────────────\n\
+            WORKED EXAMPLES\n─────────────────────────────────────────────\n\n── steps=1,\
+            \ BEHAVIOR (\"honor\") ──\n{\n  \"concrete_scene\": \"giving a pencil\
+            \ to a classmate who forgot theirs\",\n  \"arc_type\": \"BEHAVIOR\",\n\
+            \  \"step_sequence\": [\"name the classmate they helped\"],\n  \"quality_flag\"\
+            : \"too_short\"\n}\n\n── steps=2, BEHAVIOR (\"honor\") ──\n{\n  \"concrete_scene\"\
+            : \"giving a pencil to a classmate who forgot theirs\",\n  \"arc_type\"\
+            : \"BEHAVIOR\",\n  \"step_sequence\": [\n    \"name the classmate they\
+            \ helped\",\n    \"describe the result of their action\"\n  ],\n  \"quality_flag\"\
+            : \"compressed\"\n}\n\n── steps=3, BEHAVIOR (\"honor\"), L1 ──\n{\n  \"\
+            concrete_scene\": \"giving a pencil to a classmate who forgot theirs\"\
+            ,\n  \"arc_type\": \"BEHAVIOR\",\n  \"step_sequence\": [\n    \"name the\
+            \ classmate they helped\",\n    \"describe what they gave (the pencil)\"\
+            ,\n    \"say how they feel now\"\n  ],\n  \"quality_flag\": \"compressed\"\
+            \n}\n\n── steps=4, ATTRIBUTE (\"animals\") ──\n{\n  \"concrete_scene\"\
+            : \"describing my favorite animal\",\n  \"arc_type\": \"ATTRIBUTE\",\n\
+            \  \"step_sequence\": [\n    \"name their favorite animal\",\n    \"describe\
+            \ its color\",\n    \"describe its size\",\n    \"say why they like it\"\
+            \n  ],\n  \"quality_flag\": \"ok\"\n}\n\n── steps=5, SITUATION (\"take\
+            \ leave\"), L2 ──\n{\n  \"concrete_scene\": \"asking to go home because\
+            \ my stomach hurts\",\n  \"arc_type\": \"SITUATION\",\n  \"step_sequence\"\
+            : [\n    \"describe their current feeling (sick)\",\n    \"name the body\
+            \ part that hurts\",\n    \"say what they need\",\n    \"name who can\
+            \ pick them up\",\n    \"confirm they are ready to leave\"\n  ],\n  \"\
+            quality_flag\": \"ok\"\n}\n\n── steps=6, BEHAVIOR (\"helping someone\"\
+            ), L3 ──\n{\n  \"concrete_scene\": \"sharing my eraser with a classmate\"\
+            ,\n  \"arc_type\": \"BEHAVIOR\",\n  \"step_sequence\": [\n    \"name the\
+            \ classmate they helped\",\n    \"describe what they gave (the eraser)\"\
+            ,\n    \"describe how they gave it\",\n    \"say when it happened\",\n\
+            \    \"describe what the classmate did after\",\n    \"say how they feel\
+            \ now\"\n  ],\n  \"quality_flag\": \"ok\"\n}\n\n── steps=8, ATTRIBUTE\
+            \ (\"animals\"), L1 ──\n{\n  \"concrete_scene\": \"describing my favorite\
+            \ animal\",\n  \"arc_type\": \"ATTRIBUTE\",\n  \"step_sequence\": [\n\
+            \    \"name their favorite animal\",\n    \"describe its color\",\n  \
+            \  \"describe its size\",\n    \"describe its weight or texture\",\n \
+            \   \"name where it lives\",\n    \"describe the sound it makes\",\n \
+            \   \"describe what it eats\",\n    \"say why they like it\"\n  ],\n \
+            \ \"quality_flag\": \"ok\"\n}\n\n── steps=9, SITUATION (\"take leave\"\
+            ) ──\n{\n  \"concrete_scene\": \"asking to go home because my stomach\
+            \ hurts\",\n  \"arc_type\": \"SITUATION\",\n  \"step_sequence\": [\n \
+            \   \"describe their current feeling\",\n    \"name the body part that\
+            \ hurts\",\n    \"describe the severity\",\n    \"say what they need\"\
+            ,\n    \"name who can help them\",\n    \"say what they need to bring\"\
+            ,\n    \"confirm permission to leave\",\n    \"describe the action taken\
+            \ (packing bag)\",\n    \"confirm the resolution (going home)\"\n  ],\n\
+            \  \"quality_flag\": \"ok\"\n}\n\n── steps=10, BEHAVIOR (\"honor\"), L3\
+            \ ──\n{\n  \"concrete_scene\": \"giving a pencil to a classmate who forgot\
+            \ theirs\",\n  \"arc_type\": \"BEHAVIOR\",\n  \"step_sequence\": [\n \
+            \   \"name the classmate they helped\",\n    \"describe what they gave\"\
+            ,\n    \"describe how they gave it (quietly or in front of others)\",\n\
+            \    \"say when it happened\",\n    \"describe how often they help classmates\"\
+            ,\n    \"describe the result for the classmate\",\n    \"describe the\
+            \ classmate's reaction\",\n    \"describe the result for themselves\"\
+            ,\n    \"explain why they think helping is important\",\n    \"say how\
+            \ they feel now\"\n  ],\n  \"quality_flag\": \"over_padded\"\n}"
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              arc_type:
+                type: string
+              concrete_scene:
+                type: string
+              quality_flag:
+                type: string
+              step_sequence:
+                items:
+                  type: string
+                type: array
+            required:
+            - concrete_scene
+            - arc_type
+            - step_sequence
+            - quality_flag
+            type: object
+        structured_output_enabled: true
+        title: Scene Concretizer
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1777444068844'
+      position:
+        x: 1109.8421917651103
+        y: 207.67874704301374
+      positionAbsolute:
+        x: 1109.8421917651103
+        y: 207.67874704301374
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: not empty
+            id: ab0f13d6-9423-448b-bf1a-e0e0fd93cdac
+            value: ''
+            varType: array[file]
+            variable_selector:
+            - '1769074506359'
+            - teaching_materials
+          id: 'true'
+          logical_operator: or
+        selected: false
+        title: Materials Not Empty
+        type: if-else
+      height: 124
+      id: '1778039714294'
+      position:
+        x: 798.5633038453432
+        y: 91.75437285423587
+      positionAbsolute:
+        x: 798.5633038453432
+        y: 91.75437285423587
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1778148604783'
+          - structured_output
+          - concrete_scene
+          variable_selector:
+          - conversation
+          - cv_concrete_scene
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1778148604783'
+          - structured_output
+          - arc_type
+          variable_selector:
+          - conversation
+          - cv_arc_type
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1778148604783'
+          - structured_output
+          - step_sequence
+          variable_selector:
+          - conversation
+          - cv_step_sequence
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1778148604783'
+          - structured_output
+          - quality_flag
+          variable_selector:
+          - conversation
+          - cv_quality_flag
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1778148604783'
+          - structured_output
+          - extracted_patterns
+          variable_selector:
+          - conversation
+          - cv_extracted_patterns
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1778148604783'
+          - structured_output
+          - extracted_keywords
+          variable_selector:
+          - conversation
+          - cv_extracted_keywords
+          write_mode: over-write
+        selected: false
+        title: CV Assigner
+        type: assigner
+        version: '2'
+      height: 214
+      id: '1778048140385'
+      position:
+        x: 1108.6885314979463
+        y: -52.91795469013318
+      positionAbsolute:
+        x: 1108.6885314979463
+        y: -52.91795469013318
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1777444068844'
+          - structured_output
+          - concrete_scene
+          variable_selector:
+          - conversation
+          - cv_concrete_scene
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1777444068844'
+          - structured_output
+          - arc_type
+          variable_selector:
+          - conversation
+          - cv_arc_type
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1777444068844'
+          - structured_output
+          - step_sequence
+          variable_selector:
+          - conversation
+          - cv_step_sequence
+          write_mode: over-write
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1777444068844'
+          - structured_output
+          - quality_flag
+          variable_selector:
+          - conversation
+          - cv_quality_flag
+          write_mode: over-write
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - cv_extracted_patterns
+          write_mode: over-write
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - cv_extracted_keywords
+          write_mode: over-write
+        selected: false
+        title: CV Assigner
+        type: assigner
+        version: '2'
+      height: 214
+      id: '1778121429718'
+      position:
+        x: 1109.8421917651103
+        y: 314.80317723507574
+      positionAbsolute:
+        x: 1109.8421917651103
+        y: 314.80317723507574
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: gpt-4.1
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: 57d04443-cd1f-4312-b3a8-cc80408f8c4c
+          role: system
+          text: "You are a curriculum analyst for an ESL lesson planning AI.\nA teacher\
+            \ has uploaded one or more teaching materials as images.\n\nYour job:\
+            \ read ALL image inputs provided above, identify the shared English teaching\
+            \ topic,\nand extract every useful sentence pattern and vocabulary item\
+            \ across all materials.\nThe results will be used by a downstream lesson\
+            \ generator — your job is extraction only,\nnot level-adapting or simplifying.\n\
+            \n# Input\n- Teaching materials: provided as image inputs above (read\
+            \ all images before proceeding)\n- objective_steps: {{#1769074506359.objective_steps#}}\n\
+            \n─────────────────────────────────────────────\nREADING STRATEGY\n─────────────────────────────────────────────\n\
+            \nRead each image in order. For each image:\n  - Identify: teaching topic,\
+            \ sentence patterns, vocabulary items, dialogue arc.\n  - If multiple\
+            \ images share the same topic: merge their patterns and keywords.\n  -\
+            \ If images cover different topics: use the predominant or first-image\
+            \ topic for\n    concrete_scene and arc_type; still extract patterns and\
+            \ keywords from ALL images.\n\nDo NOT transcribe images verbatim. Extract\
+            \ only structured information.\n\n─────────────────────────────────────────────\n\
+            STEP 1 — Identify the teaching scene\n─────────────────────────────────────────────\n\
+            \nLook across all images for: unit title, section heading, topic label,\
+            \ dialogue scenario.\nChoose the most representative single topic if images\
+            \ differ.\nRewrite as a concrete, behavioral 4–8 word English phrase.\n\
+            \nExamples:\n  \"Unit 5: Ordering at a Restaurant\" → \"ordering food\
+            \ at a restaurant\"\n  \"Lesson: Asking for Directions\"    → \"asking\
+            \ a stranger for directions\"\n  \"Unit 37: Golf\"                   \
+            \ → \"playing a round of golf with a partner\"\n\n─────────────────────────────────────────────\n\
+            STEP 2 — Classify arc type\n─────────────────────────────────────────────\n\
+            \nATTRIBUTE — Material teaches describing properties of a concrete noun.\n\
+            SITUATION — Material teaches navigating a real-world social scenario (most\
+            \ dialogues).\nBEHAVIOR  — Material teaches expressing or demonstrating\
+            \ an abstract social value.\n\n─────────────────────────────────────────────\n\
+            STEP 3 — Build step_sequence\n─────────────────────────────────────────────\n\
+            \nOutput an ordered list of EXACTLY {{#1769074506359.objective_steps#}}\
+            \ items.\nEach item describes what the STUDENT says or produces at that\
+            \ step — not the teacher's question.\nDerive the order from the natural\
+            \ arc found in the materials' dialogues or examples.\n\nApply the Anchor\
+            \ + Pool scaling rules:\n  SITUATION: FIRST = open conversation / state\
+            \ current situation\n             LAST  = confirm resolution or close\
+            \ politely\n             Pool  = steps derived from the material's dialogue\
+            \ sequence\n  ATTRIBUTE: FIRST = name the item\n             LAST  = express\
+            \ preference\n             Pool  = observable properties in natural description\
+            \ order\n  BEHAVIOR:  FIRST = name who is involved\n             LAST\
+            \  = express how they feel (ALWAYS last)\n             Pool  = what action,\
+            \ how, when, result for other\n\nThe step_sequence describes WHAT the\
+            \ student communicates, not HOW complex the language should be.\nLanguage\
+            \ complexity will be handled by the downstream Objectives Generator.\n\
+            \n─────────────────────────────────────────────\nSTEP 4 — Extract ALL\
+            \ sentence patterns\n─────────────────────────────────────────────\n\n\
+            Extract every sentence pattern or template found in the images.\nConvert\
+            \ each to bracket-formula format:\n  \"My ball is in the rough.\"    \
+            \    → \"My ball is in [location].\"\n  \"It's your turn to tee off.\"\
+            \      → \"It's [name]'s turn to tee off.\"\n  \"I got a birdie!\"   \
+            \              → \"I got a [score]!\"\n  \"Should we walk or rent a cart?\"\
+            \  → keep as-is (no variable slot needed)\n\nRules:\n  - Include declarative\
+            \ sentences AND fixed exclamations or closing phrases.\n  - Include both\
+            \ formal and casual variants if the material distinguishes them.\n  -\
+            \ Do NOT include open-ended questions that are teacher prompts, not student\
+            \ output.\n  - NO fixed upper limit. Extract every unique, teachable pattern\
+            \ from all images.\n  - DEDUPLICATION: keep both \"I am [name].\" and\
+            \ \"I'm [name].\" (different register).\n    Collapse only true duplicates\
+            \ (identical bracket structure AND identical meaning).\n\n─────────────────────────────────────────────\n\
+            STEP 5 — Extract ALL vocabulary items\n─────────────────────────────────────────────\n\
+            \nExtract every content-bearing vocabulary item from all images.\nInclude:\
+            \ topic-specific nouns, key action verbs, useful adjectives, essential\
+            \ phrases.\nExclude: ultra-high-frequency function words (I, you, he,\
+            \ is, the, a, and, to)\n         unless they are the explicit focus of\
+            \ the lesson.\n\nNO fixed upper limit. Extract every unique, pedagogically\
+            \ useful item.\nDEDUPLICATION: list each word/phrase only once.\nPhrases\
+            \ allowed if they are taught as a unit (e.g., \"tee off\", \"make par\"\
+            ).\n\nOutput as a flat array of lowercase strings.\n\n─────────────────────────────────────────────\n\
+            STEP 6 — quality_flag\n─────────────────────────────────────────────\n\
+            \n  \"ok\"                — extraction succeeded; images clearly contain\
+            \ ESL content\n  \"compressed\"        — steps=1 or steps=2\n  \"too_short\"\
+            \         — steps=1 only\n  \"over_padded\"       — steps≥10 and material's\
+            \ natural arc is shorter than needed\n  \"material_mismatch\" — images\
+            \ do not appear to be ESL teaching material\n                        Output\
+            \ best-guess values and set this flag.\n\n─────────────────────────────────────────────\n\
+            OUTPUT FORMAT (raw JSON, no markdown)\n─────────────────────────────────────────────\n\
+            \n{\n  \"concrete_scene\": \"...\",\n  \"arc_type\": \"ATTRIBUTE | SITUATION\
+            \ | BEHAVIOR\",\n  \"step_sequence\": [\"...\", \"...\", ...],\n  \"extracted_patterns\"\
+            : [\"...\", \"...\", ...],\n  \"extracted_keywords\": [\"...\", \"...\"\
+            , ...],\n  \"quality_flag\": \"ok | compressed | too_short | over_padded\
+            \ | material_mismatch\"\n}\n\nRules:\n  - step_sequence MUST contain EXACTLY\
+            \ {{#1769074506359.objective_steps#}} items.\n  - extracted_patterns:\
+            \ NO fixed limit. Include all unique patterns from all images.\n  - extracted_keywords:\
+            \ NO fixed limit. Include all unique vocabulary from all images.\n  -\
+            \ Raw JSON only. No explanation text outside the JSON object.\n  - Your\
+            \ output MUST reflect the actual content of the uploaded images.\n   \
+            \ Do NOT reproduce the example output below — it is for format reference\
+            \ only.\n\n─────────────────────────────────────────────\nOUTPUT FORMAT\
+            \ REFERENCE (structure only — values are illustrative placeholders)\n\
+            ─────────────────────────────────────────────\n\nThe following shows the\
+            \ expected JSON structure. The values shown are placeholders\nfor a hypothetical\
+            \ topic. YOUR output must reflect the actual uploaded images.\n\n{\n \
+            \ \"concrete_scene\": \"← 4–8 word behavioral description of the actual\
+            \ topic in the images\",\n  \"arc_type\": \"← ATTRIBUTE, SITUATION, or\
+            \ BEHAVIOR based on the actual material\",\n  \"step_sequence\": [\n \
+            \   \"← step 1 derived from the actual dialogue or examples in the images\"\
+            ,\n    \"← step 2\",\n    \"← step 3\",\n    \"← step 4\",\n    \"← step\
+            \ 5 (closing step)\"\n  ],\n  \"extracted_patterns\": [\n    \"← pattern\
+            \ 1 extracted from the actual images, in bracket-formula format\",\n \
+            \   \"← pattern 2\",\n    \"← ... (include ALL unique patterns found)\"\
+            \n  ],\n  \"extracted_keywords\": [\n    \"← keyword 1 from the actual\
+            \ images\",\n    \"← keyword 2\",\n    \"← ... (include ALL unique vocabulary\
+            \ found)\"\n  ],\n  \"quality_flag\": \"ok\"\n}"
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              arc_type:
+                type: string
+              concrete_scene:
+                type: string
+              extracted_keywords:
+                items:
+                  type: string
+                type: array
+              extracted_patterns:
+                items:
+                  type: string
+                type: array
+              quality_flag:
+                type: string
+              step_sequence:
+                items:
+                  type: string
+                type: array
+            required:
+            - concrete_scene
+            - arc_type
+            - step_sequence
+            - extracted_patterns
+            - extracted_keywords
+            - quality_flag
+            type: object
+        structured_output_enabled: true
+        title: Material Extractor
+        type: llm
+        vision:
+          configs:
+            detail: high
+            variable_selector:
+            - '1769074506359'
+            - teaching_materials
+          enabled: true
+      height: 88
+      id: '1778148604783'
+      position:
+        x: 1108.6885314979463
+        y: -155.54118780230272
+      positionAbsolute:
+        x: 1108.6885314979463
+        y: -155.54118780230272
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(concrete_scene, greeting_str, obj_str):\n \
+          \   # 輔助解析函數\n    def parse_json(data_str, default_val):\n        if not\
+          \ data_str: \n            return default_val\n        if isinstance(data_str,\
+          \ (dict, list)): \n            return data_str\n        try:\n         \
+          \   return json.loads(data_str)\n        except Exception:\n           \
+          \ return default_val\n\n    obj_data = parse_json(obj_str, [])\n\n    #\
+          \ 處理 Greeting (確保是字串，處理 None 的情況)\n    greeting = str(greeting_str) if greeting_str\
+          \ else \"\"\n\n    result = {}\n\n    # 1. 處理 objectives 資料來源 (判斷是 List\
+          \ 還是 Dict)\n    objectives_list =[]\n    if isinstance(obj_data, list):\n\
+          \        objectives_list = obj_data\n    elif isinstance(obj_data, dict):\n\
+          \        objectives_list = obj_data.get(\"objectives\",[])\n        # 容錯：如果在輸入參數沒拿到\
+          \ greeting，嘗試從字典裡挖出來\n        if not greeting:\n            greeting = obj_data.get(\"\
+          greeting\", \"\")\n\n    result = {\n            \"concrete_scene\": concrete_scene,\n\
+          \            \"greeting\": greeting,\n            \"objectives\": objectives_list\n\
+          \        }\n\n    # --- 4. 輸出成漂亮的 JSON 字串 ---\n    return {\n        \"\
+          final_json\": json.dumps(result, ensure_ascii=False, indent=2)\n    }"
+        code_language: python3
+        outputs:
+          final_json:
+            children: null
+            type: string
+        selected: false
+        title: Merge Json
+        type: code
+        variables:
+        - value_selector:
+          - conversation
+          - cv_concrete_scene
+          value_type: string
+          variable: concrete_scene
+        - value_selector:
+          - '1773902165739'
+          - structured_output
+          - greeting
+          value_type: object
+          variable: greeting_str
+        - value_selector:
+          - '1779870574647'
+          - updated_objectives
+          value_type: string
+          variable: obj_str
+      height: 52
+      id: '1779342534246'
+      position:
+        x: 2176.228029325983
+        y: 288.5921260483353
+      positionAbsolute:
+        x: 2176.228029325983
+        y: 288.5921260483353
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: e813d237-771b-4a05-8e4f-37eb63c18806
+          role: system
+          text: "# Role\nYou are an ESL Curriculum Translator and Expander. \nTask:\
+            \ Enrich a JSON array of lesson objectives with Traditional Chinese (zh-TW)\
+            \ translations and keyword example sentences. Output JSON ONLY.\n\n# Input\n\
+            - Student Level: {{#1769074506359.student_level#}} (L1=Pre-A1, L2=A1,\
+            \ L3=A2)\n- Base Objectives JSON: {{#1773979208101.result#}}\n\n# Task\
+            \ Instructions\nProcess EACH object in the `Base Objectives JSON` array\
+            \ and return the fully updated array. For each object, apply these transformations:\n\
+            \n1. **Add `zh_goal` (Translate the \"Accept\" criteria):**\n   - Read\
+            \ the `goal` field (e.g., \"Accept: student says they feel excited. Reject:\
+            \ unrelated...\").\n   - Extract ONLY the \"Accept\" condition.\n   -\
+            \ Translate it concisely into Traditional Chinese (zh-TW).\n   - *Example:*\
+            \ `zh_goal`: \"學生表達他們感到興奮\"\n\n2. **Expand `keywords` from Strings to\
+            \ Objects:**\n   - The original `keywords` is an array of strings. Convert\
+            \ EACH string into an object with 3 fields:\n     - `en`: the exact English\
+            \ keyword.\n     - `zh`: Traditional Chinese translation of the keyword\
+            \ in this context.\n     - `example`: A short, declarative example sentence\
+            \ using this keyword.\n   - **Level Constraints for `example`:**\n   \
+            \  - L1: Max 6 words. Present tense only. NO \"because/so\".\n     - L2:\
+            \ Max 10 words. Simple past/future allowed.\n     - L3: Max 15 words.\
+            \ Compound sentences allowed.\n\n3. **Preserve Existing Fields:**\n  \
+            \ - Keep `index`, `goal`, `pattern`, `example` and `next_q` EXACTLY as\
+            \ they are.\n\n# Output Format (JSON ONLY)\nOutput ONLY a valid JSON array\
+            \ of objects `[ { ... }, { ... } ]`. Do not output markdown blocks."
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              greeting:
+                type: string
+              objectives:
+                additionalProperties: false
+                items:
+                  additionalProperties: false
+                  properties:
+                    example:
+                      type: string
+                    goal:
+                      type: string
+                    index:
+                      type: number
+                    keywords:
+                      items:
+                        additionalProperties: false
+                        properties:
+                          en:
+                            type: string
+                          example:
+                            type: string
+                          zh:
+                            type: string
+                        required:
+                        - en
+                        - zh
+                        - example
+                        type: object
+                      type: array
+                    next_q:
+                      type: string
+                    pattern:
+                      type: string
+                    zh_goal:
+                      type: string
+                  required:
+                  - index
+                  - goal
+                  - next_q
+                  - pattern
+                  - example
+                  - keywords
+                  - zh_goal
+                  type: object
+                type: array
+            required:
+            - objectives
+            - greeting
+            type: object
+        structured_output_enabled: true
+        title: Enrich Objectives
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1779790874216'
+      position:
+        x: 1831.8997981451234
+        y: 127.03157022000181
+      positionAbsolute:
+        x: 1831.8997981451234
+        y: 127.03157022000181
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport requests\nimport urllib.parse\n\ndef main(objectives_str):\n\
+          \    # 你的 Pixabay API Key\n    PIXABAY_API_KEY = '56040978-b3050a6d77c77bf0e78367b22'\n\
+          \    \n    objectives = []\n    \n    # 1. 安全解析輸入變數 (同時相容 List 和 String)\n\
+          \    if isinstance(objectives_str, list):\n        objectives = objectives_str\n\
+          \    elif isinstance(objectives_str, str):\n        try:\n            clean_str\
+          \ = objectives_str.replace(\"```json\", \"\").replace(\"```\", \"\").strip()\n\
+          \            objectives = json.loads(clean_str)\n        except Exception:\n\
+          \            # 解析失敗時，確保回傳的是字串\n            return {\"updated_objectives\"\
+          : objectives_str}\n    else:\n        # 如果傳進來是個鬼東西，回傳空陣列字串\n        return\
+          \ {\"updated_objectives\": \"[]\"}\n\n    # 再次確認 objectives 是一個 list\n \
+          \   if not isinstance(objectives, list):\n        # 如果不是 list (例如是 dict)，將其轉為字串回傳\n\
+          \        if isinstance(objectives_str, (dict, list)):\n            return\
+          \ {\"updated_objectives\": json.dumps(objectives_str, ensure_ascii=False)}\n\
+          \        return {\"updated_objectives\": str(objectives_str)}\n\n    session\
+          \ = requests.Session()\n\n    # 2. 跑迴圈：遍歷每個 objective 以及裡面的 keywords\n \
+          \   for obj in objectives:\n        if not isinstance(obj, dict):\n    \
+          \        continue\n            \n        raw_keywords = obj.get(\"keywords\"\
+          , [])\n        new_keywords = []\n        \n        for kw in raw_keywords:\n\
+          \            # 確保單字是字串格式 (相容純字串或物件格式)\n            en_word = \"\"\n    \
+          \        if isinstance(kw, str):\n                en_word = kw.strip()\n\
+          \            elif isinstance(kw, dict):\n                en_word = str(kw.get(\"\
+          en\", \"\")).strip()\n\n            if not en_word:\n                continue\n\
+          \                \n            image_url = \"\"\n            \n        \
+          \    # 3. 呼叫 Pixabay API 搜尋圖片\n            try:\n                safe_query\
+          \ = urllib.parse.quote(en_word)\n                url = f\"https://pixabay.com/api/?key={PIXABAY_API_KEY}&q={safe_query}&image_type=illustration&per_page=3&safesearch=true\"\
+          \n                \n                resp = session.get(url, timeout=3)\n\
+          \n                if resp.status_code == 200:\n                    data\
+          \ = resp.json()\n                    # 如果有找到圖片，取第一張\n                  \
+          \  if data.get(\"totalHits\", 0) > 0 and data.get(\"hits\"):\n         \
+          \               image_url = data[\"hits\"][0].get(\"largeImageURL\", \"\"\
+          )\n            except Exception:\n                pass # 發生網路錯誤或 Timeout\
+          \ 時，直接略過，保持 URL 為空\n            \n            # 4. 將原本的資料升級為包含大圖 URL 的 Object\n\
+          \            kw_obj = {\n                \"en\": en_word,\n            \
+          \    \"image_url\": image_url\n            }\n            # 如果原本的 kw 已經有\
+          \ zh 或 example，順便保留下來\n            if isinstance(kw, dict):\n          \
+          \      if \"zh\" in kw: kw_obj[\"zh\"] = kw[\"zh\"]\n                if\
+          \ \"example\" in kw: kw_obj[\"example\"] = kw[\"example\"]\n\n         \
+          \   new_keywords.append(kw_obj)\n            \n        # 5. 覆寫原本的 keywords\
+          \ 陣列\n        obj[\"keywords\"] = new_keywords\n\n    session.close()\n\n\
+          \    # 6. 確保回傳更新後、結構更豐富的 JSON \"字串 (String)\"\n    return {\n        \"\
+          updated_objectives\": json.dumps(objectives, ensure_ascii=False, indent=2)\n\
+          \    }"
+        code_language: python3
+        outputs:
+          updated_objectives:
+            children: null
+            type: string
+        selected: false
+        title: Fetch Images
+        type: code
+        variables:
+        - value_selector:
+          - '1779790874216'
+          - structured_output
+          - objectives
+          value_type: object
+          variable: objectives_str
+      height: 52
+      id: '1779870574647'
+      position:
+        x: 2176.228029325983
+        y: 200.04608870756357
+      positionAbsolute:
+        x: 2176.228029325983
+        y: 200.04608870756357
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_array_file: true
+        selected: false
+        title: Doc Extractor
+        type: document-extractor
+        variable_selector:
+        - '1769074506359'
+        - teaching_materials
+      height: 104
+      id: '1780457777959'
+      position:
+        x: 1108.6885314979463
+        y: 806.7556297743527
+      positionAbsolute:
+        x: 1108.6885314979463
+        y: 806.7556297743527
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "def main(extracted_texts: list) -> dict:\n    \"\"\"\n    Input:  Doc\
+          \ Extractor output — array[string], one string per file.\n    Output: doc_text\
+          \ (string), is_empty (bool)\n    \n    Why threshold 100: Doc Extractor\
+          \ on a scanned-image DOCX sometimes\n    returns a few bytes of metadata\
+          \ but no actual lesson content.\n    \"\"\"\n    if not extracted_texts:\n\
+          \        return {\"doc_text\": \"\", \"is_empty\": True}\n\n    # Filter\
+          \ out near-empty strings (metadata noise)\n    meaningful = [t.strip() for\
+          \ t in extracted_texts\n                  if isinstance(t, str) and len(t.strip())\
+          \ >= 100]\n\n    doc_text = \"\\n\\n---\\n\\n\".join(meaningful)\n\n   \
+          \ return {\n        \"doc_text\": doc_text,\n        \"is_empty\": len(doc_text)\
+          \ < 100\n    }"
+        code_language: python3
+        outputs:
+          doc_text:
+            children: null
+            type: string
+          is_empty:
+            children: null
+            type: boolean
+        selected: false
+        title: Empty Docs Detection
+        type: code
+        variables:
+        - value_selector:
+          - '1780457777959'
+          - text
+          value_type: array[string]
+          variable: extracted_texts
+      height: 52
+      id: '1780468516641'
+      position:
+        x: 1443.428796848201
+        y: 806.7556297743527
+      positionAbsolute:
+        x: 1443.428796848201
+        y: 806.7556297743527
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: 2fffbd7c-4f44-4fb7-8aa1-96f4ff47141c
+            value: true
+            varType: boolean
+            variable_selector:
+            - '1780468516641'
+            - is_empty
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: Extract Empty Text
+        type: if-else
+      height: 124
+      id: '1780481561884'
+      position:
+        x: 1443.428796848201
+        y: 882.681682650763
+      positionAbsolute:
+        x: 1443.428796848201
+        y: 882.681682650763
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4.1
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: 7cfb8e6e-4d23-41f0-8e84-526658941f82
+          role: system
+          text: "You are a bilingual document analyst.\nThe uploaded image(s) are\
+            \ pages from a Traditional Chinese elementary school \nlesson plan (教案).\
+            \ Extract ALL text content visible in the image.\n\nRules:\n- Output only\
+            \ the extracted text, preserving the original Traditional Chinese.\n-\
+            \ Preserve table structure using Markdown pipe format (| col | col |).\n\
+            - Do NOT translate. Do NOT summarize.\n- If multiple images, concatenate\
+            \ all pages in order.\n- If the image is not a lesson plan, return: \"\
+            [NOT_A_LESSON_PLAN]\""
+        selected: false
+        title: Extract Content by Vision
+        type: llm
+        vision:
+          configs:
+            detail: high
+            variable_selector:
+            - '1769074506359'
+            - teaching_materials
+          enabled: true
+      height: 88
+      id: '1780481575441'
+      position:
+        x: 1756.5316738252136
+        y: 702.3573070692883
+      positionAbsolute:
+        x: 1756.5316738252136
+        y: 702.3573070692883
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: 'Message: Material Cannot be Empty!'
+        selected: false
+        title: Material Cannot be Empty
+        type: answer
+        variables: []
+      height: 116
+      id: '1780482685265'
+      position:
+        x: 1103.5676190880852
+        y: 1167.4043809373018
+      positionAbsolute:
+        x: 1103.5676190880852
+        y: 1167.4043809373018
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items: []
+        selected: false
+        title: Variable Assigner 3
+        type: assigner
+        version: '2'
+      height: 84
+      id: '1780482788991'
+      position:
+        x: 1756.531673825214
+        y: 1053.5153016226861
+      positionAbsolute:
+        x: 1756.531673825214
+        y: 1053.5153016226861
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -632.2882574468397
+      y: 272.8268744527033
+      zoom: 0.8705505632961241
+  rag_pipeline_variables: []

@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ar-assets-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ar
+      POSTGRES_PASSWORD: ar_dev_pw
+      POSTGRES_DB: ar_assets
+    ports:
+      # host 5433 → container 5432 (5432 is taken by editor-db-1)
+      - "5433:5432"
+    volumes:
+      - ar_assets_pgdata:/var/lib/postgresql/data
+
+volumes:
+  ar_assets_pgdata:

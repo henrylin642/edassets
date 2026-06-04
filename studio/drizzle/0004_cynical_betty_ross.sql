@@ -1,0 +1,1 @@
+ALTER TABLE "scenario" ADD COLUMN "concept_status" "model_status" DEFAULT 'none' NOT NULL;
