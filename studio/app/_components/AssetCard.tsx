@@ -1,6 +1,6 @@
 import type { Asset } from "@/lib/db/schema";
 import { toMB } from "@/lib/meshinfo";
-import { ReviewButtons, Make3dButton, RegenButton, PromptEditor, GenerateButton, DeleteButton } from "./Controls";
+import { ReviewButtons, Make3dButton, RegenButton, PromptEditor, GenerateButton, DeleteButton, SideViewButton } from "./Controls";
 
 /* eslint-disable @next/next/no-img-element */
 export function AssetCard({ a }: { a: Asset }) {
@@ -71,6 +71,7 @@ export function AssetCard({ a }: { a: Asset }) {
           )}
 
           <div className="flex flex-wrap gap-2">
+            <SideViewButton id={a.id} scenarioId={a.scenarioId ?? undefined} status={a.sideViewStatus} has={a.hasSideView} />
             <Make3dButton id={a.id} scenarioId={a.scenarioId ?? undefined} status={a.modelStatus} />
             <RegenButton id={a.id} scenarioId={a.scenarioId ?? undefined} />
           </div>

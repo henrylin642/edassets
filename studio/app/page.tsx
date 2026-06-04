@@ -35,8 +35,11 @@ async function getData() {
   const [b3] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(asset).where(and(eq(asset.status, "uploaded"), eq(asset.modelStatus, "none")));
+  const [sv] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(asset).where(inArray(asset.sideViewStatus, ["requested", "generating"]));
 
-  const busy = imgQueue.length + modelQueue.length + conceptQueue.length > 0;
+  const busy = imgQueue.length + modelQueue.length + conceptQueue.length + (sv?.n ?? 0) > 0;
 
   return { byStatus, scenarios, perScene, review, busy, imgQueue, modelQueue, conceptQueue, batch3dCount: b3?.n ?? 0 };
 }

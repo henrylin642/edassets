@@ -1,0 +1,1 @@
+ALTER TABLE "asset" ADD COLUMN "side_view_status" "model_status" DEFAULT 'none' NOT NULL;

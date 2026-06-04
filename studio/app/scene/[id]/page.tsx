@@ -21,8 +21,12 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
   const pending = assets.filter((a) => a.status === "pending").length;
   const no3d = assets.filter((a) => a.status === "uploaded" && a.modelStatus === "none").length;
   const busy =
-    assets.some((a) => ["queued", "generating"].includes(a.status) || ["requested", "generating"].includes(a.modelStatus)) ||
-    ["requested", "generating"].includes(sc.conceptStatus);
+    assets.some(
+      (a) =>
+        ["queued", "generating"].includes(a.status) ||
+        ["requested", "generating"].includes(a.modelStatus) ||
+        ["requested", "generating"].includes(a.sideViewStatus),
+    ) || ["requested", "generating"].includes(sc.conceptStatus);
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-6">

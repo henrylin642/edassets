@@ -57,6 +57,13 @@
       "when": 1780570587076,
       "tag": "0007_typical_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780571953090,
+      "tag": "0008_premium_king_bedlam",
+      "breakpoints": true
     }
   ]
 }

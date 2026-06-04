@@ -123,6 +123,8 @@ export const asset = pgTable(
     modelTaskId: text("model_task_id"),
     /** side view (for multiview 3D) generated & stored (not on LiG) */
     hasSideView: boolean("has_side_view").notNull().default(false),
+    /** background side-view generation state (own button) */
+    sideViewStatus: modelStatus("side_view_status").notNull().default("none"),
     /** why side-view generation failed, if it did (surfaced in UI) */
     sideViewError: text("side_view_error"),
 

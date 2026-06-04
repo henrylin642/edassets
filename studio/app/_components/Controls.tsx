@@ -16,6 +16,7 @@ import {
   addObjectAction,
   deleteAssetAction,
   batch3dAction,
+  sideViewAction,
 } from "../actions";
 
 const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
@@ -195,6 +196,19 @@ export function PromptEditor({ id, scenarioId, subject }: { id: string; scenario
       </button>
       <p className="mt-1 text-[10px] text-gray-400">儲存後設為「待生成」，按「生成下一個」即用新描述重生。風格後綴自動附加（見設定中心）。</p>
     </details>
+  );
+}
+
+export function SideViewButton({ id, scenarioId, status, has }: { id: string; scenarioId?: string; status: string; has: boolean }) {
+  const [pending, start] = useTransition();
+  if (status === "requested" || status === "generating") {
+    return <span className="rounded bg-violet-50 px-2 py-1 text-xs text-violet-600">🪞 側視圖生成中…</span>;
+  }
+  return (
+    <button disabled={pending} onClick={() => start(async () => { await sideViewAction(id, scenarioId); })}
+      className="rounded border border-violet-500 px-2 py-1 text-xs font-medium text-violet-700 disabled:opacity-50">
+      {pending ? "排入中…" : has ? "🪞 重生側視圖" : "🪞 生成側視圖"}
+    </button>
   );
 }
 

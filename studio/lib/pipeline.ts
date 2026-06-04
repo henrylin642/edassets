@@ -306,6 +306,54 @@ export async function generate3d(id: string): Promise<Asset> {
   }
 }
 
+// ── side view (own button + reused by multiview 3D) ─────────────────────────
+/** Enqueue side-view generation for one asset. */
+export async function requestSideView(id: string): Promise<Asset> {
+  return updateAsset(id, { sideViewStatus: "requested", sideViewError: null });
+}
+
+/** Claim one 'requested' side view → 'generating'. */
+export async function claimNextSideView(): Promise<Asset | null> {
+  const rows = await db.execute(sql`
+    UPDATE ${asset} SET side_view_status = 'generating', updated_at = now()
+    WHERE id = (SELECT id FROM ${asset} WHERE side_view_status = 'requested'
+      ORDER BY updated_at LIMIT 1 FOR UPDATE SKIP LOCKED)
+    RETURNING id`);
+  const id = (rows as unknown as { id: string }[])[0]?.id;
+  return id ? (await getAsset(id)) ?? null : null;
+}
+
+/** Generate + store a side view (gpt-image-1; DB only, not LiG). Returns the buffer. */
+export async function makeSideView(a: Asset): Promise<Buffer> {
+  const config = await getConfig();
+  if (!a.imageUrl) throw new Error("asset has no image yet");
+  const front = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
+  const side = await generateAltView(front, "left side", config);
+  const b64 = side.toString("base64");
+  await db
+    .insert(sideView)
+    .values({ assetId: a.id, b64 })
+    .onConflictDoUpdate({ target: sideView.assetId, set: { b64, createdAt: new Date() } });
+  return side;
+}
+
+/** Worker step: generate the side view for a claimed asset. */
+export async function processSideView(a: Asset): Promise<void> {
+  try {
+    await makeSideView(a);
+    await updateAsset(a.id, { hasSideView: true, sideViewStatus: "done", sideViewError: null });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await updateAsset(a.id, { sideViewStatus: "failed", sideViewError: msg });
+  }
+}
+
+/** Load a stored side view buffer, if present. */
+async function loadSideView(assetId: string): Promise<Buffer | null> {
+  const row = (await db.select().from(sideView).where(eq(sideView.assetId, assetId)))[0];
+  return row ? Buffer.from(row.b64, "base64") : null;
+}
+
 // ── async 3D state machine (Hobby-safe: each step < 60s) ─────────────────────
 function tripoOptsFromConfig(c: Awaited<ReturnType<typeof getConfig>>) {
   return {
@@ -324,26 +372,24 @@ export async function start3d(a: Asset): Promise<void> {
     const imgBuf = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
     const opts = tripoOptsFromConfig(config);
 
-    // Side view (for multiview): generate via gpt-image-1, store in DB for
-    // display + 3D input — NOT uploaded to LiG. Surface any error.
+    // Side view (for multiview): reuse a stored one if present, else generate
+    // via gpt-image-1 and store in DB (display + 3D input — NOT on LiG).
     let side: Buffer | null = null;
     let sideErr: string | null = null;
     if (config.model3dMultiview) {
-      try {
-        side = await generateAltView(imgBuf, "left side", config);
-      } catch (e) {
-        sideErr = e instanceof Error ? e.message : String(e);
+      side = a.hasSideView ? await loadSideView(a.id) : null;
+      if (!side) {
+        try {
+          side = await makeSideView(a);
+        } catch (e) {
+          sideErr = e instanceof Error ? e.message : String(e);
+        }
       }
     }
 
     let taskId: string;
     if (side) {
-      const b64 = side.toString("base64");
-      await db
-        .insert(sideView)
-        .values({ assetId: a.id, b64 })
-        .onConflictDoUpdate({ target: sideView.assetId, set: { b64, createdAt: new Date() } });
-      await updateAsset(a.id, { hasSideView: true, sideViewError: null });
+      await updateAsset(a.id, { hasSideView: true, sideViewStatus: "done", sideViewError: null });
       taskId = await createMultiviewTask({ front: imgBuf, left: side }, "png", opts);
     } else {
       // side view unavailable → record why, fall back to single-image 3D
@@ -505,6 +551,8 @@ export async function drainOnce(mode: PipelineMode = "review"): Promise<boolean>
   if (img) { await processAsset(img, mode); return true; }
   const conceptId = await claimNextConcept();
   if (conceptId) { await generateSceneConcept(conceptId).catch(() => {}); return true; }
+  const sv = await claimNextSideView();
+  if (sv) { await processSideView(sv); return true; }
   const toStart = await claimNextModelStart();
   if (toStart) { await start3d(toStart); return true; }
   const toPoll = await claimNextModelPoll();
