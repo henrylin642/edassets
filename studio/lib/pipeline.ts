@@ -324,10 +324,14 @@ export async function start3d(a: Asset): Promise<void> {
     const imgBuf = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
     const opts = tripoOptsFromConfig(config);
 
+    // multiview needs >=2 views; if the side view can't be made, fall back to
+    // single-image (a 1-view multiview is rejected by Tripo with 400).
+    const side = config.model3dMultiview
+      ? await generateAltView(imgBuf, "left side", config).catch(() => null)
+      : null;
     let taskId: string;
-    if (config.model3dMultiview) {
-      const side = await generateAltView(imgBuf, "left side", config).catch(() => null);
-      taskId = await createMultiviewTask(side ? { front: imgBuf, left: side } : { front: imgBuf }, "png", opts);
+    if (side) {
+      taskId = await createMultiviewTask({ front: imgBuf, left: side }, "png", opts);
     } else {
       const token = await tripoUploadImage(imgBuf, "png");
       taskId = await createImageToModelTask(token, "png", opts);
