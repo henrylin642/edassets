@@ -348,8 +348,9 @@ export async function poll3d(a: Asset): Promise<void> {
     const r = await fetchModelIfReady(a.modelTaskId);
     if (!r) return; // still running (claim already touched updated_at)
     if ("failed" in r) {
-      await db.insert(generationJob).values({ assetId: a.id, stage: "model", status: "failed", provider: "tripo", error: "Tripo task failed" });
-      await updateAsset(a.id, { modelStatus: "failed", error: "Tripo task failed", modelTaskId: null });
+      const msg = `Tripo task ${r.status}`;
+      await db.insert(generationJob).values({ assetId: a.id, stage: "model", status: "failed", provider: "tripo", error: msg });
+      await updateAsset(a.id, { modelStatus: "failed", error: msg, modelTaskId: null });
       return;
     }
     const ligModel = await uploadImage(r.glb, `${a.nameEn}-3d`, "glb", [...a.tags, "3d"]);

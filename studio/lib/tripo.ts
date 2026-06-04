@@ -101,7 +101,7 @@ async function waitForModel(taskId: string, opts: { pollMs?: number; timeoutMs?:
       if (!mr.ok) throw new Error(`Tripo model download ${mr.status}`);
       return Buffer.from(await mr.arrayBuffer());
     }
-    if (t.status === "failed" || t.status === "cancelled") throw new Error(`Tripo task ${t.status}`);
+    if (t.status !== "queued" && t.status !== "running") throw new Error(`Tripo task ${t.status}`);
   }
   throw new Error(`Tripo task ${taskId} timed out`);
 }
@@ -151,7 +151,7 @@ export async function createMultiviewTask(
 }
 
 /** Download a finished task's model glb. Returns null if not finished yet. */
-export async function fetchModelIfReady(taskId: string): Promise<{ glb: Buffer } | { failed: true } | null> {
+export async function fetchModelIfReady(taskId: string): Promise<{ glb: Buffer } | { failed: true; status: string } | null> {
   const t = await getTask(taskId);
   if (t.status === "success") {
     if (!t.modelUrl) throw new Error("Tripo success but no model url");
@@ -159,8 +159,10 @@ export async function fetchModelIfReady(taskId: string): Promise<{ glb: Buffer }
     if (!mr.ok) throw new Error(`Tripo model download ${mr.status}`);
     return { glb: Buffer.from(await mr.arrayBuffer()) };
   }
-  if (t.status === "failed" || t.status === "cancelled") return { failed: true };
-  return null; // still running
+  // still in progress
+  if (t.status === "queued" || t.status === "running") return null;
+  // anything else is terminal-not-success: failed | cancelled | expired | unknown | banned
+  return { failed: true, status: t.status };
 }
 
 export async function multiviewToModel(
