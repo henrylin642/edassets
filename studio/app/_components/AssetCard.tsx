@@ -21,9 +21,13 @@ export function AssetCard({ a }: { a: Asset }) {
 
       {a.hasSideView && (
         <div className="space-y-0.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/sideview/${a.id}`} alt={`${a.nameEn} side`} className="aspect-square w-full rounded bg-gray-50 object-contain" />
-          <div className="text-[10px] text-gray-400">側視圖（3D 用，不上架）</div>
+          <div className="grid grid-cols-2 gap-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/sideview/${a.id}?kind=left`} alt={`${a.nameEn} side`} className="aspect-square w-full rounded bg-gray-50 object-contain" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/sideview/${a.id}?kind=back`} alt={`${a.nameEn} back`} className="aspect-square w-full rounded bg-gray-50 object-contain" />
+          </div>
+          <div className="text-[10px] text-gray-400">側視 + 背視（3D 用，不上架）</div>
         </div>
       )}
       {a.sideViewError && (

@@ -64,6 +64,13 @@
       "when": 1780571953090,
       "tag": "0008_premium_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780603037069,
+      "tag": "0009_new_network",
+      "breakpoints": true
     }
   ]
 }

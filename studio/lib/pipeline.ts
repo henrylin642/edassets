@@ -273,12 +273,13 @@ export async function generate3d(id: string): Promise<Asset> {
       pbr: config.model3dPbr,
     };
 
-    // multiview only when a side view exists for this asset; else single-image
-    const sideBuf = a.hasSideView ? await loadSideView(a.id) : null;
+    // multiview only when aux views exist for this asset; else single-image
+    const sideBuf = a.hasSideView ? await loadView(a.id, "left") : null;
+    const backBuf = a.hasSideView ? await loadView(a.id, "back") : null;
     let glb: Buffer;
     let taskId: string;
     if (sideBuf) {
-      ({ glb, taskId } = await multiviewToModel({ front: imgBuf, left: sideBuf }, "png", tripoOpts));
+      ({ glb, taskId } = await multiviewToModel({ front: imgBuf, left: sideBuf, back: backBuf ?? undefined }, "png", tripoOpts));
     } else {
       ({ glb, taskId } = await imageToModel(imgBuf, "png", tripoOpts));
     }
@@ -326,24 +327,27 @@ export async function claimNextSideView(): Promise<Asset | null> {
   return id ? (await getAsset(id)) ?? null : null;
 }
 
-/** Generate + store a side view (gpt-image-1; DB only, not LiG). Returns the buffer. */
-export async function makeSideView(a: Asset): Promise<Buffer> {
+/** Generate + store the auxiliary views (side + back) for multiview 3D. DB only, not LiG. */
+export async function makeAuxViews(a: Asset): Promise<{ left: Buffer; back: Buffer }> {
   const config = await getConfig();
   if (!a.imageUrl) throw new Error("asset has no image yet");
   const front = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
-  const side = await generateAltView(front, "left side", config);
-  const b64 = side.toString("base64");
-  await db
-    .insert(sideView)
-    .values({ assetId: a.id, b64 })
-    .onConflictDoUpdate({ target: sideView.assetId, set: { b64, createdAt: new Date() } });
-  return side;
+  const left = await generateAltView(front, "left side", config);
+  const back = await generateAltView(front, "back", config);
+  for (const [kind, buf] of [["left", left], ["back", back]] as const) {
+    const b64 = buf.toString("base64");
+    await db
+      .insert(sideView)
+      .values({ assetId: a.id, kind, b64 })
+      .onConflictDoUpdate({ target: [sideView.assetId, sideView.kind], set: { b64, createdAt: new Date() } });
+  }
+  return { left, back };
 }
 
-/** Worker step: generate the side view for a claimed asset. */
+/** Worker step: generate side + back views for a claimed asset. */
 export async function processSideView(a: Asset): Promise<void> {
   try {
-    await makeSideView(a);
+    await makeAuxViews(a);
     await updateAsset(a.id, { hasSideView: true, sideViewStatus: "done", sideViewError: null });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -351,9 +355,11 @@ export async function processSideView(a: Asset): Promise<void> {
   }
 }
 
-/** Load a stored side view buffer, if present. */
-async function loadSideView(assetId: string): Promise<Buffer | null> {
-  const row = (await db.select().from(sideView).where(eq(sideView.assetId, assetId)))[0];
+/** Load a stored auxiliary view (kind = 'left' | 'back'), if present. */
+async function loadView(assetId: string, kind: "left" | "back"): Promise<Buffer | null> {
+  const row = (
+    await db.select().from(sideView).where(and(eq(sideView.assetId, assetId), eq(sideView.kind, kind)))
+  )[0];
   return row ? Buffer.from(row.b64, "base64") : null;
 }
 
@@ -383,9 +389,10 @@ export async function start3d(a: Asset): Promise<void> {
     const imgBuf = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
     const opts = tripoOptsFromConfig(config);
 
-    // Multiview only when a side view exists for this asset (thin/flat objects,
-    // generated manually via the side-view button); otherwise single-image.
-    const side = a.hasSideView ? await loadSideView(a.id) : null;
+    // Multiview only when aux views exist for this asset (side + back, generated
+    // manually via the side-view button); otherwise single-image.
+    const side = a.hasSideView ? await loadView(a.id, "left") : null;
+    const back = a.hasSideView ? await loadView(a.id, "back") : null;
 
     // Balance before/after task creation → credits charged for THIS task
     // (Tripo charges at creation; capturing here is robust to concurrency).
@@ -393,7 +400,7 @@ export async function start3d(a: Asset): Promise<void> {
     let taskId: string;
     const mode = side ? "multiview" : "single";
     if (side) {
-      taskId = await createMultiviewTask({ front: imgBuf, left: side }, "png", opts);
+      taskId = await createMultiviewTask({ front: imgBuf, left: side, back: back ?? undefined }, "png", opts);
     } else {
       const token = await tripoUploadImage(imgBuf, "png");
       taskId = await createImageToModelTask(token, "png", opts);

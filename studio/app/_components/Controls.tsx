@@ -203,13 +203,13 @@ export function PromptEditor({ id, scenarioId, subject }: { id: string; scenario
 export function SideViewButton({ id, scenarioId, status, has }: { id: string; scenarioId?: string; status: string; has: boolean }) {
   const [pending, start] = useTransition();
   if (status === "requested" || status === "generating") {
-    return <span className="rounded bg-violet-50 px-2 py-1 text-xs text-violet-600">🪞 側視圖生成中…</span>;
+    return <span className="rounded bg-violet-50 px-2 py-1 text-xs text-violet-600">🪞 側/背視圖生成中…</span>;
   }
   return (
     <span className="inline-flex gap-1">
       <button disabled={pending} onClick={() => start(async () => { await sideViewAction(id, scenarioId); })}
         className="rounded border border-violet-500 px-2 py-1 text-xs font-medium text-violet-700 disabled:opacity-50">
-        {pending ? "…" : has ? "🪞 重生側視圖" : "🪞 生成側視圖"}
+        {pending ? "…" : has ? "🪞 重生側/背視圖" : "🪞 生成側/背視圖"}
       </button>
       {has && (
         <button disabled={pending} onClick={() => start(async () => { await clearSideViewAction(id, scenarioId); })}

@@ -22,6 +22,7 @@ import {
   timestamp,
   unique,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // ── Enums ──────────────────────────────────────────────────────────────
@@ -169,14 +170,20 @@ export const generationJob = pgTable(
   (t) => [index("job_asset_idx").on(t.assetId)],
 );
 
-// ── side_view (multiview 3D input; stored in DB, NOT uploaded to LiG) ────
-export const sideView = pgTable("side_view", {
-  assetId: uuid("asset_id")
-    .primaryKey()
-    .references(() => asset.id, { onDelete: "cascade" }),
-  b64: text("b64").notNull(), // base64 PNG
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+// ── side_view (multiview 3D inputs; stored in DB, NOT uploaded to LiG) ────
+// One row per auxiliary view of an asset. kind: 'left' (側) | 'back' (背).
+export const sideView = pgTable(
+  "side_view",
+  {
+    assetId: uuid("asset_id")
+      .notNull()
+      .references(() => asset.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // 'left' | 'back'
+    b64: text("b64").notNull(), // base64 PNG
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.assetId, t.kind] })],
+);
 
 // ── app_setting (single-row config for the settings center) ─────────────
 export const appSetting = pgTable("app_setting", {
