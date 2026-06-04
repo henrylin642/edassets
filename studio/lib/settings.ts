@@ -37,7 +37,7 @@ export const DEFAULT_CONFIG: StudioConfig = {
   conceptSize: "1536x1024",
   imageQuality: "medium",
   background: "opaque",
-  gptImageModel: "gpt-image-1",
+  gptImageModel: "gpt-image-2",
   namingModel: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
   objectsPerCategory: 8,
   model3dFaceLimit: 30000,
