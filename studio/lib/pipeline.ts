@@ -17,9 +17,9 @@ import { and, eq, sql, inArray } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
-import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject } from "./openai";
+import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView } from "./openai";
 import { uploadImage } from "./lig";
-import { imageToModel } from "./tripo";
+import { imageToModel, multiviewToModel } from "./tripo";
 import { buildTags, toTag } from "./prompt";
 import { pngSize, glbFaceCount } from "./meshinfo";
 
@@ -269,12 +269,26 @@ export async function generate3d(id: string): Promise<Asset> {
     if (!imgRes.ok) throw new Error(`download image ${imgRes.status}`);
     const imgBuf = Buffer.from(await imgRes.arrayBuffer());
 
-    const { glb, taskId } = await imageToModel(imgBuf, "png", {
+    const tripoOpts = {
       faceLimit: config.model3dFaceLimit,
       textureSize: config.model3dTextureSize,
       textureQuality: config.model3dTextureQuality,
       pbr: config.model3dPbr,
-    });
+    };
+
+    let glb: Buffer;
+    let taskId: string;
+    if (config.model3dMultiview) {
+      // front + AI-generated side view → better thickness/geometry
+      const sideBuf = await generateAltView(imgBuf, "left side", config).catch(() => null);
+      ({ glb, taskId } = await multiviewToModel(
+        sideBuf ? { front: imgBuf, left: sideBuf } : { front: imgBuf },
+        "png",
+        tripoOpts,
+      ));
+    } else {
+      ({ glb, taskId } = await imageToModel(imgBuf, "png", tripoOpts));
+    }
     const ligModel = await uploadImage(glb, `${a.nameEn}-3d`, "glb", [...a.tags, "3d"]);
 
     const faces = glbFaceCount(glb);

@@ -88,22 +88,10 @@ export async function getTask(taskId: string): Promise<TripoTask> {
   };
 }
 
-/** Full flow: image buffer → glb model buffer (+ taskId). Polls up to ~5 min. */
-export async function imageToModel(
-  buf: Buffer,
-  ext = "png",
-  opts: { pollMs?: number; timeoutMs?: number } & TripoModelOptions = {},
-): Promise<{ glb: Buffer; taskId: string }> {
-  const token = await uploadImage(buf, ext);
-  const taskId = await createImageToModelTask(token, ext, {
-    faceLimit: opts.faceLimit,
-    textureSize: opts.textureSize,
-    textureQuality: opts.textureQuality,
-    pbr: opts.pbr,
-  });
-
+/** Poll a task until success, then download its model glb. */
+async function waitForModel(taskId: string, opts: { pollMs?: number; timeoutMs?: number } = {}): Promise<Buffer> {
   const pollMs = opts.pollMs ?? 5000;
-  const deadline = Date.now() + (opts.timeoutMs ?? 6 * 60_000);
+  const deadline = Date.now() + (opts.timeoutMs ?? 8 * 60_000);
   while (Date.now() < deadline) {
     await sleep(pollMs);
     const t = await getTask(taskId);
@@ -111,11 +99,53 @@ export async function imageToModel(
       if (!t.modelUrl) throw new Error("Tripo success but no model url");
       const mr = await fetch(t.modelUrl);
       if (!mr.ok) throw new Error(`Tripo model download ${mr.status}`);
-      return { glb: Buffer.from(await mr.arrayBuffer()), taskId };
+      return Buffer.from(await mr.arrayBuffer());
     }
-    if (t.status === "failed" || t.status === "cancelled") {
-      throw new Error(`Tripo task ${t.status}`);
-    }
+    if (t.status === "failed" || t.status === "cancelled") throw new Error(`Tripo task ${t.status}`);
   }
   throw new Error(`Tripo task ${taskId} timed out`);
+}
+
+/** Single image → glb. */
+export async function imageToModel(
+  buf: Buffer,
+  ext = "png",
+  opts: { pollMs?: number; timeoutMs?: number } & TripoModelOptions = {},
+): Promise<{ glb: Buffer; taskId: string }> {
+  const token = await uploadImage(buf, ext);
+  const taskId = await createImageToModelTask(token, ext, opts);
+  return { glb: await waitForModel(taskId, opts), taskId };
+}
+
+/**
+ * Multi-view → glb. Views in Tripo order [front, left, back, right]; provide
+ * front (required) + any others, missing slots are skipped. Better geometry
+ * (e.g. correct thickness of flat objects) than single-image.
+ */
+export async function multiviewToModel(
+  views: { front: Buffer; left?: Buffer; back?: Buffer; right?: Buffer },
+  ext = "png",
+  opts: { pollMs?: number; timeoutMs?: number } & TripoModelOptions = {},
+): Promise<{ glb: Buffer; taskId: string }> {
+  const { base, key } = cfg();
+  const order: (Buffer | undefined)[] = [views.front, views.left, views.back, views.right];
+  const files = await Promise.all(
+    order.map(async (b) => (b ? { type: ext, file_token: await uploadImage(b, ext) } : {})),
+  );
+
+  const body: Record<string, unknown> = { type: "multiview_to_model", files, texture: true, pbr: opts.pbr ?? true };
+  if (opts.faceLimit && opts.faceLimit > 0) body.face_limit = opts.faceLimit;
+  if (opts.textureSize && opts.textureSize > 0) body.texture_size = opts.textureSize;
+  if (opts.textureQuality) body.texture_quality = opts.textureQuality;
+
+  const res = await fetch(`${base}/task`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Tripo multiview /task ${res.status}: ${await res.text()}`);
+  const j = (await res.json()) as { data?: { task_id?: string } };
+  const taskId = j.data?.task_id;
+  if (!taskId) throw new Error(`Tripo multiview returned no task_id: ${JSON.stringify(j)}`);
+  return { glb: await waitForModel(taskId, opts), taskId };
 }

@@ -1,27 +1,14 @@
 import { drainOnce } from "@/lib/pipeline";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // allow long 3D jobs (Vercel Pro); Hobby caps lower
+export const maxDuration = 300; // capped by plan (Hobby ≈ 60s — long 3D jobs may not fit)
 
 /**
- * Serverless queue drainer — Vercel Cron hits this on a schedule (see vercel.json).
- * Processes items in "auto" mode (uploads straight to LiG; no local files).
- * Bounded by a wall-clock budget so it returns before the function timeout.
+ * Process ONE queued item (auto mode → uploads to LiG, no local files).
+ * Driven by the client AutoRefresh poller while a tab is open (Vercel Hobby has
+ * no per-minute cron). Concurrent calls are safe: claims use FOR UPDATE SKIP LOCKED.
  */
-export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) return new Response("Unauthorized", { status: 401 });
-  }
-
-  const budgetMs = 250_000;
-  const deadline = Date.now() + budgetMs;
-  let processed = 0;
-  while (Date.now() < deadline) {
-    const did = await drainOnce("auto").catch(() => false);
-    if (!did) break;
-    processed++;
-  }
+export async function GET() {
+  const processed = await drainOnce("auto").catch(() => false);
   return Response.json({ ok: true, processed });
 }

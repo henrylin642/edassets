@@ -20,13 +20,22 @@ import {
 
 const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
 
-/** Auto-refresh the page while background work is in progress (non-blocking). */
+/**
+ * While background work is queued: poll a worker tick (drives generation on
+ * serverless/Hobby where there's no cron) and refresh the page to show progress.
+ */
 export function AutoRefresh({ active, ms = 4000 }: { active: boolean; ms?: number }) {
   const router = useRouter();
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(() => router.refresh(), ms);
-    return () => clearInterval(t);
+    let stop = false;
+    const run = async () => {
+      try { await fetch("/api/worker/tick"); } catch {}
+      if (!stop) router.refresh();
+    };
+    const t = setInterval(run, ms);
+    void run();
+    return () => { stop = true; clearInterval(t); };
   }, [active, ms, router]);
   return active ? (
     <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">

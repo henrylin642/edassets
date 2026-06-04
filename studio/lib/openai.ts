@@ -118,6 +118,27 @@ export async function generateImageB64(prompt: string, config: StudioConfig): Pr
   return Buffer.from(b64, "base64");
 }
 
+/**
+ * Generate an alternate-angle view of an existing object image (for multiview 3D).
+ * Edits the front image so the same object is shown from another side.
+ */
+export async function generateAltView(
+  frontBuf: Buffer,
+  angle: "left side" | "right side" | "back",
+  config: StudioConfig,
+): Promise<Buffer> {
+  const file = await OpenAI.toFile(frontBuf, "front.png", { type: "image/png" });
+  const prompt =
+    `Orthographic ${angle} profile of the exact same single object from the image, rotated exactly 90 degrees ` +
+    `so it is seen edge-on. Reveal its true depth/thickness — if the object is thin or flat it must clearly look ` +
+    `thin from this angle. Keep identical colors, materials and proportions; same object, only the camera angle ` +
+    `changes. Plain solid white background, centered, no text.`;
+  const r = await client().images.edit({ model: config.gptImageModel, image: file, prompt, size: config.imageSize });
+  const b64 = r.data?.[0]?.b64_json;
+  if (!b64) throw new Error("gpt-image-1 returned no alt view");
+  return Buffer.from(b64, "base64");
+}
+
 // ── gpt-image-1: concept art with Tom reference ──────────────────────────────
 /** Resolve the Tom reference image path (env override or studio/assets/tom.png). */
 export function tomRefPath(): string {

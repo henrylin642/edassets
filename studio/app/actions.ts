@@ -127,6 +127,7 @@ export async function saveSettingsAction(formData: FormData) {
     model3dTextureSize: Number(formData.get("model3dTextureSize") ?? 512),
     model3dTextureQuality: formData.get("model3dTextureQuality") as StudioConfig["model3dTextureQuality"],
     model3dPbr: formData.get("model3dPbr") === "on",
+    model3dMultiview: formData.get("model3dMultiview") === "on",
   };
   await saveConfig(patch);
   revalidatePath("/settings");
