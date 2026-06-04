@@ -119,6 +119,8 @@ export const asset = pgTable(
     status: assetStatus("status").notNull().default("pending"),
     /** image-to-3D state; user decides per asset */
     modelStatus: modelStatus("model_status").notNull().default("none"),
+    /** Tripo task id while a 3D job is in flight (async state machine) */
+    modelTaskId: text("model_task_id"),
 
     /** captured metrics */
     imageWidth: integer("image_width"),

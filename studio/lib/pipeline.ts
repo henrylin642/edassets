@@ -19,7 +19,14 @@ import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
 import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView } from "./openai";
 import { uploadImage } from "./lig";
-import { imageToModel, multiviewToModel } from "./tripo";
+import {
+  imageToModel,
+  multiviewToModel,
+  createMultiviewTask,
+  createImageToModelTask,
+  uploadImage as tripoUploadImage,
+  fetchModelIfReady,
+} from "./tripo";
 import { buildTags, toTag } from "./prompt";
 import { pngSize, glbFaceCount } from "./meshinfo";
 
@@ -137,17 +144,6 @@ export async function request3dAll(scenarioId?: string): Promise<number> {
     .where(and(...conds))
     .returning({ id: asset.id });
   return rows.length;
-}
-
-/** Claim one 'requested' 3D model atomically → 'generating'. */
-export async function claimNextModel(): Promise<Asset | null> {
-  const rows = await db.execute(sql`
-    UPDATE ${asset} SET model_status = 'generating', updated_at = now()
-    WHERE id = (SELECT id FROM ${asset} WHERE model_status = 'requested'
-      ORDER BY updated_at LIMIT 1 FOR UPDATE SKIP LOCKED)
-    RETURNING id`);
-  const id = (rows as unknown as { id: string }[])[0]?.id;
-  return id ? (await getAsset(id)) ?? null : null;
 }
 
 /** Claim one 'requested' concept scene atomically → 'generating'. Returns scenarioId. */
@@ -310,6 +306,96 @@ export async function generate3d(id: string): Promise<Asset> {
   }
 }
 
+// ── async 3D state machine (Hobby-safe: each step < 60s) ─────────────────────
+function tripoOptsFromConfig(c: Awaited<ReturnType<typeof getConfig>>) {
+  return {
+    faceLimit: c.model3dFaceLimit,
+    textureSize: c.model3dTextureSize,
+    textureQuality: c.model3dTextureQuality,
+    pbr: c.model3dPbr,
+  };
+}
+
+/** Step 1: create the Tripo task for a claimed ('generating') asset, store task id. */
+export async function start3d(a: Asset): Promise<void> {
+  const config = await getConfig();
+  try {
+    if (!a.imageUrl) throw new Error("asset has no image yet");
+    const imgBuf = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
+    const opts = tripoOptsFromConfig(config);
+
+    let taskId: string;
+    if (config.model3dMultiview) {
+      const side = await generateAltView(imgBuf, "left side", config).catch(() => null);
+      taskId = await createMultiviewTask(side ? { front: imgBuf, left: side } : { front: imgBuf }, "png", opts);
+    } else {
+      const token = await tripoUploadImage(imgBuf, "png");
+      taskId = await createImageToModelTask(token, "png", opts);
+    }
+    await db.insert(generationJob).values({ assetId: a.id, stage: "model", status: "running", provider: "tripo", result: { taskId } });
+    await updateAsset(a.id, { modelTaskId: taskId, modelStatus: "generating", error: null });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await db.insert(generationJob).values({ assetId: a.id, stage: "model", status: "failed", provider: "tripo", error: msg });
+    await updateAsset(a.id, { modelStatus: "failed", error: msg, modelTaskId: null });
+  }
+}
+
+/** Step 2: poll the in-flight Tripo task; when ready, upload glb to LiG → done. */
+export async function poll3d(a: Asset): Promise<void> {
+  if (!a.modelTaskId) return;
+  try {
+    const r = await fetchModelIfReady(a.modelTaskId);
+    if (!r) return; // still running (claim already touched updated_at)
+    if ("failed" in r) {
+      await db.insert(generationJob).values({ assetId: a.id, stage: "model", status: "failed", provider: "tripo", error: "Tripo task failed" });
+      await updateAsset(a.id, { modelStatus: "failed", error: "Tripo task failed", modelTaskId: null });
+      return;
+    }
+    const ligModel = await uploadImage(r.glb, `${a.nameEn}-3d`, "glb", [...a.tags, "3d"]);
+    const faces = glbFaceCount(r.glb);
+    await db.insert(generationJob).values({
+      assetId: a.id, stage: "model", status: "completed", provider: "tripo",
+      result: { id: ligModel.id, url: ligModel.url, faces, bytes: r.glb.length },
+    });
+    await updateAsset(a.id, {
+      modelStatus: "done", modelUrl: ligModel.url, ligModelId: ligModel.id,
+      modelFaces: faces, modelBytes: r.glb.length, modelTaskId: null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await updateAsset(a.id, { modelStatus: "failed", error: msg, modelTaskId: null });
+  }
+}
+
+/** Claim a 3D job to START: 'requested', or a stalled 'generating' with no task. */
+export async function claimNextModelStart(): Promise<Asset | null> {
+  const rows = await db.execute(sql`
+    UPDATE ${asset} SET model_status = 'generating', updated_at = now()
+    WHERE id = (
+      SELECT id FROM ${asset}
+      WHERE model_status = 'requested'
+         OR (model_status = 'generating' AND model_task_id IS NULL AND updated_at < now() - interval '3 minutes')
+      ORDER BY updated_at LIMIT 1 FOR UPDATE SKIP LOCKED
+    ) RETURNING id`);
+  const id = (rows as unknown as { id: string }[])[0]?.id;
+  return id ? (await getAsset(id)) ?? null : null;
+}
+
+/** Claim a 3D job to POLL: 'generating' with a task, not polled in the last 8s. */
+export async function claimNextModelPoll(): Promise<Asset | null> {
+  const rows = await db.execute(sql`
+    UPDATE ${asset} SET updated_at = now()
+    WHERE id = (
+      SELECT id FROM ${asset}
+      WHERE model_status = 'generating' AND model_task_id IS NOT NULL
+        AND updated_at < now() - interval '8 seconds'
+      ORDER BY updated_at LIMIT 1 FOR UPDATE SKIP LOCKED
+    ) RETURNING id`);
+  const id = (rows as unknown as { id: string }[])[0]?.id;
+  return id ? (await getAsset(id)) ?? null : null;
+}
+
 /** Regenerate one asset: send back to pending (keeps name/prompt; old LiG asset orphaned). */
 export async function regenAsset(id: string): Promise<Asset> {
   await rm(pendingPath(id), { force: true }).catch(() => {});
@@ -399,8 +485,10 @@ export async function drainOnce(mode: PipelineMode = "review"): Promise<boolean>
   if (img) { await processAsset(img, mode); return true; }
   const conceptId = await claimNextConcept();
   if (conceptId) { await generateSceneConcept(conceptId).catch(() => {}); return true; }
-  const model = await claimNextModel();
-  if (model) { await generate3d(model.id).catch(() => {}); return true; }
+  const toStart = await claimNextModelStart();
+  if (toStart) { await start3d(toStart); return true; }
+  const toPoll = await claimNextModelPoll();
+  if (toPoll) { await poll3d(toPoll); return true; }
   return false;
 }
 

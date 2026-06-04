@@ -1,0 +1,1 @@
+ALTER TABLE "asset" ADD COLUMN "model_task_id" text;

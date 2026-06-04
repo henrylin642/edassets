@@ -122,17 +122,17 @@ export async function imageToModel(
  * front (required) + any others, missing slots are skipped. Better geometry
  * (e.g. correct thickness of flat objects) than single-image.
  */
-export async function multiviewToModel(
+/** Create a multiview task (no wait) → task_id. Views order [front, left, back, right]. */
+export async function createMultiviewTask(
   views: { front: Buffer; left?: Buffer; back?: Buffer; right?: Buffer },
   ext = "png",
-  opts: { pollMs?: number; timeoutMs?: number } & TripoModelOptions = {},
-): Promise<{ glb: Buffer; taskId: string }> {
+  opts: TripoModelOptions = {},
+): Promise<string> {
   const { base, key } = cfg();
   const order: (Buffer | undefined)[] = [views.front, views.left, views.back, views.right];
   const files = await Promise.all(
     order.map(async (b) => (b ? { type: ext, file_token: await uploadImage(b, ext) } : {})),
   );
-
   const body: Record<string, unknown> = { type: "multiview_to_model", files, texture: true, pbr: opts.pbr ?? true };
   if (opts.faceLimit && opts.faceLimit > 0) body.face_limit = opts.faceLimit;
   if (opts.textureSize && opts.textureSize > 0) body.texture_size = opts.textureSize;
@@ -147,5 +147,27 @@ export async function multiviewToModel(
   const j = (await res.json()) as { data?: { task_id?: string } };
   const taskId = j.data?.task_id;
   if (!taskId) throw new Error(`Tripo multiview returned no task_id: ${JSON.stringify(j)}`);
+  return taskId;
+}
+
+/** Download a finished task's model glb. Returns null if not finished yet. */
+export async function fetchModelIfReady(taskId: string): Promise<{ glb: Buffer } | { failed: true } | null> {
+  const t = await getTask(taskId);
+  if (t.status === "success") {
+    if (!t.modelUrl) throw new Error("Tripo success but no model url");
+    const mr = await fetch(t.modelUrl);
+    if (!mr.ok) throw new Error(`Tripo model download ${mr.status}`);
+    return { glb: Buffer.from(await mr.arrayBuffer()) };
+  }
+  if (t.status === "failed" || t.status === "cancelled") return { failed: true };
+  return null; // still running
+}
+
+export async function multiviewToModel(
+  views: { front: Buffer; left?: Buffer; back?: Buffer; right?: Buffer },
+  ext = "png",
+  opts: { pollMs?: number; timeoutMs?: number } & TripoModelOptions = {},
+): Promise<{ glb: Buffer; taskId: string }> {
+  const taskId = await createMultiviewTask(views, ext, opts);
   return { glb: await waitForModel(taskId, opts), taskId };
 }
