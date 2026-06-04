@@ -312,6 +312,12 @@ export async function requestSideView(id: string): Promise<Asset> {
   return updateAsset(id, { sideViewStatus: "requested", sideViewError: null });
 }
 
+/** Clear a stored side view → that asset's 3D falls back to single-image. */
+export async function clearSideView(id: string): Promise<Asset> {
+  await db.delete(sideView).where(eq(sideView.assetId, id));
+  return updateAsset(id, { hasSideView: false, sideViewStatus: "none", sideViewError: null });
+}
+
 /** Claim one 'requested' side view → 'generating'. */
 export async function claimNextSideView(): Promise<Asset | null> {
   const rows = await db.execute(sql`

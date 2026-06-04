@@ -17,6 +17,7 @@ import {
   deleteAssetAction,
   batch3dAction,
   sideViewAction,
+  clearSideViewAction,
 } from "../actions";
 
 const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
@@ -205,10 +206,19 @@ export function SideViewButton({ id, scenarioId, status, has }: { id: string; sc
     return <span className="rounded bg-violet-50 px-2 py-1 text-xs text-violet-600">🪞 側視圖生成中…</span>;
   }
   return (
-    <button disabled={pending} onClick={() => start(async () => { await sideViewAction(id, scenarioId); })}
-      className="rounded border border-violet-500 px-2 py-1 text-xs font-medium text-violet-700 disabled:opacity-50">
-      {pending ? "排入中…" : has ? "🪞 重生側視圖" : "🪞 生成側視圖"}
-    </button>
+    <span className="inline-flex gap-1">
+      <button disabled={pending} onClick={() => start(async () => { await sideViewAction(id, scenarioId); })}
+        className="rounded border border-violet-500 px-2 py-1 text-xs font-medium text-violet-700 disabled:opacity-50">
+        {pending ? "…" : has ? "🪞 重生側視圖" : "🪞 生成側視圖"}
+      </button>
+      {has && (
+        <button disabled={pending} onClick={() => start(async () => { await clearSideViewAction(id, scenarioId); })}
+          title="清除側視圖 → 此物件改用單圖做 3D"
+          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-500 disabled:opacity-50">
+          ✕ 用單圖
+        </button>
+      )}
+    </span>
   );
 }
 

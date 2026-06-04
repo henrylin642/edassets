@@ -8,6 +8,7 @@ import {
   rejectAsset,
   request3d,
   requestSideView,
+  clearSideView,
   regenAsset,
   regenScene,
   setAssetSubject,
@@ -66,6 +67,12 @@ export async function request3dAction(id: string, scenarioId?: string) {
 export async function sideViewAction(id: string, scenarioId?: string) {
   await requestSideView(id); // enqueue side-view generation (background)
   ensureWorker();
+  revalidatePath("/");
+  if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
+}
+
+export async function clearSideViewAction(id: string, scenarioId?: string) {
+  await clearSideView(id); // 3D will use single-image
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
 }
