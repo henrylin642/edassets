@@ -66,7 +66,12 @@ export async function GET(req: Request) {
     model_ready: a.modelStatus === "done",
     model_status: a.modelStatus, // none | requested | generating | done | failed
     model: a.modelUrl
-      ? { faces: a.modelFaces, bytes: a.modelBytes, mb: toMB(a.modelBytes) }
+      ? {
+          faces: a.modelFaces,
+          bytes: a.modelBytes,
+          mb: toMB(a.modelBytes),
+          credits: (a.generationMeta as { model?: { creditsUsed?: number } } | null)?.model?.creditsUsed ?? null,
+        }
       : null,
     prompt: a.imagePrompt, // subject phrase
     full_prompt: a.imagePrompt ? buildObjectPrompt(a.imagePrompt, config, a.type) : null,

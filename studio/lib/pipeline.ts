@@ -26,6 +26,7 @@ import {
   createImageToModelTask,
   uploadImage as tripoUploadImage,
   fetchModelIfReady,
+  getBalance,
 } from "./tripo";
 import { buildTags, toTag } from "./prompt";
 import { pngSize, glbFaceCount } from "./meshinfo";
@@ -356,6 +357,14 @@ async function loadSideView(assetId: string): Promise<Buffer | null> {
   return row ? Buffer.from(row.b64, "base64") : null;
 }
 
+/** Merge fields into generation_meta.model (keeps image-gen meta intact). */
+async function mergeModelMeta(id: string, patch: Record<string, unknown>): Promise<void> {
+  const a = await getAsset(id);
+  const meta = (a?.generationMeta as Record<string, unknown> | null) ?? {};
+  const model = { ...((meta.model as Record<string, unknown>) ?? {}), ...patch };
+  await updateAsset(id, { generationMeta: { ...meta, model } });
+}
+
 // ── async 3D state machine (Hobby-safe: each step < 60s) ─────────────────────
 function tripoOptsFromConfig(c: Awaited<ReturnType<typeof getConfig>>) {
   return {
@@ -378,14 +387,36 @@ export async function start3d(a: Asset): Promise<void> {
     // generated manually via the side-view button); otherwise single-image.
     const side = a.hasSideView ? await loadSideView(a.id) : null;
 
+    // Balance before/after task creation → credits charged for THIS task
+    // (Tripo charges at creation; capturing here is robust to concurrency).
+    const balanceBefore = await getBalance().catch(() => null);
     let taskId: string;
+    const mode = side ? "multiview" : "single";
     if (side) {
       taskId = await createMultiviewTask({ front: imgBuf, left: side }, "png", opts);
     } else {
       const token = await tripoUploadImage(imgBuf, "png");
       taskId = await createImageToModelTask(token, "png", opts);
     }
-    await db.insert(generationJob).values({ assetId: a.id, stage: "model", status: "running", provider: "tripo", result: { taskId } });
+    const balanceAfter = await getBalance().catch(() => null);
+    const creditsUsed =
+      balanceBefore != null && balanceAfter != null ? balanceBefore - balanceAfter : null;
+
+    const modelMeta = {
+      provider: "tripo",
+      taskId,
+      mode,
+      faceLimit: opts.faceLimit,
+      textureSize: opts.textureSize,
+      creditsUsed,
+      balanceAfter,
+      startedAt: new Date().toISOString(),
+    };
+    await db.insert(generationJob).values({
+      assetId: a.id, stage: "model", status: "running", provider: "tripo",
+      result: { taskId, mode, creditsUsed, balanceAfter },
+    });
+    await mergeModelMeta(a.id, modelMeta);
     await updateAsset(a.id, { modelTaskId: taskId, modelStatus: "generating", error: null });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -412,6 +443,7 @@ export async function poll3d(a: Asset): Promise<void> {
       assetId: a.id, stage: "model", status: "completed", provider: "tripo",
       result: { id: ligModel.id, url: ligModel.url, faces, bytes: r.glb.length },
     });
+    await mergeModelMeta(a.id, { faces, bytes: r.glb.length, ligModelId: ligModel.id, finishedAt: new Date().toISOString() });
     await updateAsset(a.id, {
       modelStatus: "done", modelUrl: ligModel.url, ligModelId: ligModel.id,
       modelFaces: faces, modelBytes: r.glb.length, modelTaskId: null,

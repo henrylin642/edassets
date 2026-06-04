@@ -14,6 +14,15 @@ function cfg() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Current Tripo credit balance (for per-task cost tracking). */
+export async function getBalance(): Promise<number | null> {
+  const { base, key } = cfg();
+  const res = await fetch(`${base}/user/balance`, { headers: { Authorization: `Bearer ${key}` } });
+  if (!res.ok) return null;
+  const j = (await res.json()) as { data?: { balance?: number } };
+  return typeof j.data?.balance === "number" ? j.data.balance : null;
+}
+
 /** Upload an image, return its file token. */
 export async function uploadImage(buf: Buffer, ext = "png"): Promise<string> {
   const { base, key } = cfg();

@@ -62,6 +62,10 @@ export function AssetCard({ a }: { a: Asset }) {
               <div className="text-[10px] text-cyan-700">
                 {a.modelFaces ? `${a.modelFaces.toLocaleString()} 面` : ""}
                 {a.modelBytes ? ` · ${toMB(a.modelBytes)} MB` : ""}
+                {(() => {
+                  const c = (a.generationMeta as { model?: { creditsUsed?: number } } | null)?.model?.creditsUsed;
+                  return typeof c === "number" ? ` · 扣 ${c} 點` : "";
+                })()}
               </div>
               <div className="text-[10px] text-cyan-700">
                 3D asset_id: <span className="font-mono">{a.ligModelId}</span> ·{" "}
