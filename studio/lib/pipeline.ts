@@ -18,6 +18,7 @@ import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
 import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView } from "./openai";
+import type { PlannedObject } from "./openai";
 import { uploadImage } from "./lig";
 import {
   imageToModel,
@@ -73,7 +74,7 @@ export async function createScene(venue: string): Promise<CreateSceneResult> {
   const skipped: string[] = [];
 
   const insertObjects = async (
-    items: { en: string; zh: string; subject: string }[],
+    items: { en: string; zh: string; subject: string; placement?: PlannedObject["placement"] }[],
     type: "scene_object" | "keyword",
     bucket: string[],
   ) => {
@@ -89,6 +90,7 @@ export async function createScene(venue: string): Promise<CreateSceneResult> {
           imagePrompt: o.subject,
           tagKey: toTag(o.en),
           tags: buildTags(o.en, o.zh),
+          placement: type === "scene_object" ? o.placement ?? null : null,
           status: "pending",
         })
         .onConflictDoNothing({ target: [asset.type, asset.tagKey] })

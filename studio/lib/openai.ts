@@ -18,11 +18,20 @@ function client() {
 }
 
 // ── scene planning (LLM) ───────────────────────────────────────────────────
+/** AR placement within the scene space (meters, Unity left-handed; Tom at origin facing +Z). */
+export interface Placement {
+  x: number; // +right / −left of Tom
+  z: number; // +front (toward user) / −back
+  rotationY: number; // degrees about Y (0 = facing +Z / the user)
+  sizeM: number; // real-world height in meters (GLB scaled to this)
+}
 export interface PlannedObject {
   en: string;
   zh: string;
   /** concise visual subject; style is appended downstream */
   subject: string;
+  /** AR placement (scene_objects only; keywords omit it) */
+  placement?: Placement;
 }
 export interface ScenePlan {
   name_en: string;
@@ -41,21 +50,35 @@ Two object categories:
 
 For EACH object give: "en" (English word/short name), "zh" (Traditional Chinese), "subject" (a concise visual noun phrase to draw it as ONE recognizable physical item in this venue's typical form; no brand/logo/text words; no style words).
 
-Also give "name_en", "name_zh" for the venue, and "concept_prompt": a vivid scene description IN TRADITIONAL CHINESE (繁體中文) for a wide-angle concept illustration whose visual center is "Tom" (湯姆), a friendly AI coach acting as the venue's staff, talking to the learner — describe 湯姆 as the staff, the setting, and the key props around him so the whole venue is conveyed. Write it as natural Traditional Chinese prose. Do NOT mention any readable text/signage.
+AR SCENE SPACE — place every scene_object in a real 3D room around the coach so the learner feels immersed.
+Coordinate system (Unity, meters): the coach "Tom" stands at the ORIGIN (0,0) and FACES the learner along +Z.
+- x axis: Tom's RIGHT is +x, Tom's LEFT is −x. Allowed range x ∈ [−{LEFT}, +{RIGHT}].
+- z axis: in FRONT of Tom (toward the learner) is +z, BEHIND Tom is −z. Allowed range z ∈ [−{BACK}, +{FRONT}].
+For EACH scene_object also give "placement": {"x","z","rotationY","sizeM"} where
+  x,z = floor position in meters (within the ranges above; keep |x|,|z| inside the box),
+  rotationY = facing in degrees (0 = facing +Z toward the learner, 90 = facing +X),
+  sizeM = the object's real-world HEIGHT in meters (e.g. shelf ≈ 1.8, counter ≈ 1.0, stool ≈ 0.5).
+Lay them out like a believable venue: large furniture (counters, shelves, machines) along the sides/back, leave the area right in front of Tom (small +z, x near 0) walkable, do NOT overlap objects, keep everything inside the box. keyword_objects do NOT get placement.
+
+Also give "name_en", "name_zh" for the venue, and "concept_prompt": a vivid scene description IN TRADITIONAL CHINESE (繁體中文) for a wide-angle concept illustration, drawn from the LEARNER'S viewpoint looking toward "Tom" (湯姆) at the centre — 湯姆是面向使用者的英語教練/店員。描述湯姆、空間，以及依上面座標擺放在他左右後方與前方的關鍵道具，讓整個情境被傳達。Write it as natural Traditional Chinese prose. Do NOT mention any readable text/signage.
 
 Return ONLY JSON:
-{"name_en","name_zh","concept_prompt","scene_objects":[{"en","zh","subject"}],"keyword_objects":[{"en","zh","subject"}]}`;
+{"name_en","name_zh","concept_prompt","scene_objects":[{"en","zh","subject","placement":{"x","z","rotationY","sizeM"}}],"keyword_objects":[{"en","zh","subject"}]}`;
 
 export async function generateScenePlan(venue: string, config: StudioConfig): Promise<ScenePlan> {
+  const system = PLAN_SYSTEM.replace("{LEFT}", String(config.arLeft))
+    .replace("{RIGHT}", String(config.arRight))
+    .replace("{BACK}", String(config.arBack))
+    .replace("{FRONT}", String(config.arFront));
   const res = await client().chat.completions.create({
     model: config.namingModel,
     temperature: 0.4,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: PLAN_SYSTEM },
+      { role: "system", content: system },
       {
         role: "user",
-        content: `Venue: ${venue}\nPropose about ${config.objectsPerCategory} objects per category.`,
+        content: `Venue: ${venue}\nScene space: ${config.arLeft}m left, ${config.arRight}m right, ${config.arFront}m front, ${config.arBack}m back of Tom.\nPropose about ${config.objectsPerCategory} objects per category.`,
       },
     ],
   });
@@ -63,7 +86,19 @@ export async function generateScenePlan(venue: string, config: StudioConfig): Pr
   const plan = JSON.parse(raw) as ScenePlan;
   plan.scene_objects ??= [];
   plan.keyword_objects ??= [];
+  plan.scene_objects = plan.scene_objects.map((o) => ({ ...o, placement: clampPlacement(o.placement, config) }));
   return plan;
+}
+
+/** Keep a placement inside the configured box; supply sane defaults if missing. */
+function clampPlacement(p: Placement | undefined, config: StudioConfig): Placement {
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  return {
+    x: clamp(Number(p?.x ?? 0), -config.arLeft, config.arRight),
+    z: clamp(Number(p?.z ?? 1), -config.arBack, config.arFront),
+    rotationY: ((Number(p?.rotationY ?? 0) % 360) + 360) % 360,
+    sizeM: clamp(Number(p?.sizeM ?? 1), 0.05, 4),
+  };
 }
 
 // ── translate a Chinese object name → English name + visual subject ──────────

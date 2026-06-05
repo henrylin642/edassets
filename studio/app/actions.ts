@@ -151,6 +151,10 @@ export async function saveSettingsAction(formData: FormData) {
     model3dTextureSize: Number(formData.get("model3dTextureSize") ?? 512),
     model3dTextureQuality: formData.get("model3dTextureQuality") as StudioConfig["model3dTextureQuality"],
     model3dPbr: formData.get("model3dPbr") === "on",
+    arLeft: Number(formData.get("arLeft") ?? 4),
+    arRight: Number(formData.get("arRight") ?? 4),
+    arFront: Number(formData.get("arFront") ?? 6),
+    arBack: Number(formData.get("arBack") ?? 2),
   };
   await saveConfig(patch);
   revalidatePath("/settings");

@@ -24,6 +24,11 @@ export interface StudioConfig {
   model3dTextureSize: number; // texture px (e.g. 512)
   model3dTextureQuality: "standard" | "detailed";
   model3dPbr: boolean;
+  // ── AR scene space (meters; Unity left-handed, Y up; Tom at origin facing +Z) ──
+  arLeft: number; // meters to Tom's left (−X)
+  arRight: number; // meters to Tom's right (+X)
+  arFront: number; // meters in front of Tom (+Z, toward the user)
+  arBack: number; // meters behind Tom (−Z)
 }
 
 export const DEFAULT_CONFIG: StudioConfig = {
@@ -44,6 +49,10 @@ export const DEFAULT_CONFIG: StudioConfig = {
   model3dTextureSize: 512,
   model3dTextureQuality: "standard",
   model3dPbr: true,
+  arLeft: 4,
+  arRight: 4,
+  arFront: 6,
+  arBack: 2,
 };
 
 export async function getConfig(): Promise<StudioConfig> {

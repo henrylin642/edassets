@@ -75,6 +75,8 @@ export async function GET(req: Request) {
       : null,
     prompt: a.imagePrompt, // subject phrase
     full_prompt: a.imagePrompt ? buildObjectPrompt(a.imagePrompt, config, a.type) : null,
+    // AR placement (scene_object only): meters, Unity left-handed, Tom at origin facing +Z
+    placement: a.placement ?? null,
     example: a.exampleSentence, // optional practice sentence
     background: "white",
     image_source: "gpt-image-1",
@@ -95,6 +97,14 @@ export async function GET(req: Request) {
         concept: s.conceptImageUrl
           ? { description: s.conceptPrompt, img_url: s.conceptImageUrl, asset_id: s.conceptLigId }
           : null,
+        // AR scene space: Tom at origin facing +Z (user side); meters, Unity left-handed
+        space: {
+          unit: "meter",
+          coordinate_system: "unity_left_handed_y_up",
+          origin: "tom",
+          tom_faces: "+z",
+          bounds: { x_min: -config.arLeft, x_max: config.arRight, z_min: -config.arBack, z_max: config.arFront },
+        },
         scene_objects: items.filter((a) => a.type === "scene_object").map(toObject),
         keyword_objects: items.filter((a) => a.type === "keyword").map(toObject),
         updated_at: s.updatedAt,

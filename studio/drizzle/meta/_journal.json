@@ -71,6 +71,13 @@
       "when": 1780603037069,
       "tag": "0009_new_network",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780624525827,
+      "tag": "0010_slimy_chamber",
+      "breakpoints": true
     }
   ]
 }

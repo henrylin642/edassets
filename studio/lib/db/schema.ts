@@ -137,6 +137,9 @@ export const asset = pgTable(
     modelBytes: integer("model_bytes"),
     /** image_model, prompt, seed, negative_prompt, etc. */
     generationMeta: jsonb("generation_meta"),
+    /** AR placement for scene_object: position/rotation/size within the scene
+     * space (meters, Unity left-handed; Tom at origin facing +Z). null for keywords. */
+    placement: jsonb("placement").$type<{ x: number; z: number; rotationY: number; sizeM: number }>(),
     error: text("error"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

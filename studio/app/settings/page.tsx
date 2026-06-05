@@ -88,6 +88,29 @@ export default async function SettingsPage() {
           <p className="text-xs text-gray-400">目標 1–3MB：面數 ≤ 30000 + 貼圖 512 + standard。檔案仍偏大時可關閉 PBR。</p>
         </fieldset>
 
+        <fieldset className="space-y-3 rounded-lg border border-gray-200 p-4">
+          <legend className="px-1 text-sm font-medium">AR 情境空間（公尺）— Tom 在原點、面向使用者 (+Z)</legend>
+          <div className="grid grid-cols-4 gap-4">
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">左 (−X)</span>
+              <input type="number" name="arLeft" defaultValue={cfg.arLeft} min={0} max={20} step={0.5} className={`${field} w-full`} />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">右 (+X)</span>
+              <input type="number" name="arRight" defaultValue={cfg.arRight} min={0} max={20} step={0.5} className={`${field} w-full`} />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">前 (+Z)</span>
+              <input type="number" name="arFront" defaultValue={cfg.arFront} min={0} max={20} step={0.5} className={`${field} w-full`} />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">後 (−Z)</span>
+              <input type="number" name="arBack" defaultValue={cfg.arBack} min={0} max={20} step={0.5} className={`${field} w-full`} />
+            </label>
+          </div>
+          <p className="text-[11px] text-gray-400">情境物件會由 AI 在此範圍內安排座標 (x,z)、朝向、實尺寸，寫進 /api/feed 供 AR 端擺放。</p>
+        </fieldset>
+
         <div className="text-xs text-gray-400">生圖模型：{cfg.gptImageModel}・命名模型：{cfg.namingModel}（於 .env 調整）</div>
         <button className="rounded bg-pink-600 px-4 py-2 text-sm font-medium text-white">儲存設定</button>
       </form>

@@ -4,7 +4,9 @@ import { eq, asc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton } from "@/app/_components/Controls";
 import { AssetCard } from "@/app/_components/AssetCard";
+import { LayoutMap } from "@/app/_components/LayoutMap";
 import { ensureWorker } from "@/lib/worker";
+import { getConfig } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 const { asset, scenario } = schema;
@@ -15,6 +17,7 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
   const sc = (await db.select().from(scenario).where(eq(scenario.id, id)))[0];
   if (!sc) notFound();
 
+  const config = await getConfig();
   const assets = await db.select().from(asset).where(eq(asset.scenarioId, id)).orderBy(asc(asset.nameEn));
   const sceneObjects = assets.filter((a) => a.type === "scene_object");
   const keywordObjects = assets.filter((a) => a.type === "keyword");
@@ -60,6 +63,13 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </header>
+
+      <LayoutMap
+        bounds={{ left: config.arLeft, right: config.arRight, front: config.arFront, back: config.arBack }}
+        objects={sceneObjects
+          .filter((a) => a.placement)
+          .map((a) => ({ name: a.nameEn, ...a.placement! }))}
+      />
 
       <Section title="情境物件 scene objects" hint="維持沉浸感的場景道具" items={sceneObjects} scenarioId={id} type="scene_object" addLabel="情境物件" />
       <Section title="關鍵字物件 keyword objects" hint="用戶練習用的關鍵字實物" items={keywordObjects} scenarioId={id} type="keyword" addLabel="關鍵字物件" />

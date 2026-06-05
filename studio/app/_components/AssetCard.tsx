@@ -39,6 +39,12 @@ export function AssetCard({ a }: { a: Asset }) {
         <span className="text-xs text-gray-400">{a.nameZh}</span>
       </div>
 
+      {a.placement && (
+        <div className="text-[10px] text-cyan-700">
+          📍 x{a.placement.x} z{a.placement.z} · {a.placement.rotationY}° · {a.placement.sizeM}m
+        </div>
+      )}
+
       {a.status === "pending" && <GenerateButton id={a.id} scenarioId={a.scenarioId ?? undefined} />}
 
       {a.status === "review" && <ReviewButtons id={a.id} scenarioId={a.scenarioId ?? undefined} />}
