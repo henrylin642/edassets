@@ -17,7 +17,7 @@ import { and, eq, sql, inArray } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
-import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView } from "./openai";
+import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements } from "./openai";
 import type { PlannedObject } from "./openai";
 import { uploadImage } from "./lig";
 import {
@@ -103,6 +103,32 @@ export async function createScene(venue: string): Promise<CreateSceneResult> {
   await insertObjects(plan.keyword_objects, "keyword", keywordObjects);
 
   return { scenarioId, nameEn: plan.name_en || venue, sceneObjects, keywordObjects, skipped };
+}
+
+/** Re-plan AR placement for an existing scene's objects (no image/model regen). */
+export async function replanLayout(scenarioId: string): Promise<number> {
+  const config = await getConfig();
+  const sc = (await db.select().from(scenario).where(eq(scenario.id, scenarioId)))[0];
+  if (!sc) throw new Error("scenario not found");
+  const objs = await db
+    .select()
+    .from(asset)
+    .where(and(eq(asset.scenarioId, scenarioId), eq(asset.type, "scene_object")));
+  if (objs.length === 0) return 0;
+  const placements = await planPlacements(
+    sc.venueCategory ?? sc.nameEn,
+    objs.map((o) => ({ en: o.nameEn, zh: o.nameZh })),
+    config,
+  );
+  let n = 0;
+  for (const o of objs) {
+    const p = placements[o.nameEn.trim().toLowerCase()];
+    if (p) {
+      await db.update(asset).set({ placement: p, updatedAt: new Date() }).where(eq(asset.id, o.id));
+      n++;
+    }
+  }
+  return n;
 }
 
 // ── concept image ────────────────────────────────────────────────────────────

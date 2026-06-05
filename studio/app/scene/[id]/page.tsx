@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq, asc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton } from "@/app/_components/Controls";
+import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton } from "@/app/_components/Controls";
 import { AssetCard } from "@/app/_components/AssetCard";
 import { LayoutMap } from "@/app/_components/LayoutMap";
 import { ensureWorker } from "@/lib/worker";
@@ -52,6 +52,7 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
             <ProcessNextButton count={pending} scenarioId={sc.id} />
             <Batch3dButton scenarioId={sc.id} count={no3d} />
             <RegenAllButton scenarioId={sc.id} />
+            <ReplanLayoutButton scenarioId={sc.id} count={sceneObjects.length} />
             <DeleteSceneButton scenarioId={sc.id} name={sc.nameEn} />
             <AutoRefresh active={busy} />
           </div>

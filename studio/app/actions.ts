@@ -18,6 +18,7 @@ import {
   addObjectAuto,
   deleteAsset,
   deleteScene,
+  replanLayout,
 } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
@@ -125,6 +126,12 @@ export async function deleteSceneAction(scenarioId: string) {
   await deleteScene(scenarioId);
   revalidatePath("/");
   redirect("/");
+}
+
+/** Re-plan AR placement for an existing scene's objects (for scenes created before placement). */
+export async function replanLayoutAction(scenarioId: string) {
+  await replanLayout(scenarioId);
+  revalidatePath(`/scene/${scenarioId}`);
 }
 
 /** Manually add a custom object to a scene. */

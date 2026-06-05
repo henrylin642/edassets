@@ -19,6 +19,7 @@ import {
   sideViewAction,
   clearSideViewAction,
   deleteSceneAction,
+  replanLayoutAction,
 } from "../actions";
 
 const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
@@ -220,6 +221,18 @@ export function SideViewButton({ id, scenarioId, status, has }: { id: string; sc
         </button>
       )}
     </span>
+  );
+}
+
+export function ReplanLayoutButton({ scenarioId, count }: { scenarioId: string; count: number }) {
+  const [pending, start] = useTransition();
+  return (
+    <button disabled={pending || count === 0}
+      onClick={() => start(async () => { await replanLayoutAction(scenarioId); })}
+      title="用 AI 把現有情境物件排進座標（不重生圖）"
+      className="rounded border border-cyan-600 px-3 py-1.5 text-xs font-medium text-cyan-700 disabled:opacity-50">
+      {pending ? "排佈局中…" : `🗺 重算佈局（${count}）`}
+    </button>
   );
 }
 

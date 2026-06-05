@@ -90,6 +90,43 @@ export async function generateScenePlan(venue: string, config: StudioConfig): Pr
   return plan;
 }
 
+/**
+ * Assign AR placement to a set of EXISTING scene objects (no image regen).
+ * Returns a map keyed by lowercased English name → clamped Placement.
+ */
+export async function planPlacements(
+  venue: string,
+  objects: { en: string; zh?: string | null }[],
+  config: StudioConfig,
+): Promise<Record<string, Placement>> {
+  if (objects.length === 0) return {};
+  const system = `You arrange EXISTING props into a believable 3D layout for a venue, for an AR English scene.
+Coordinate system (Unity, meters): the coach "Tom" stands at the ORIGIN (0,0) and FACES the learner along +Z.
+- x: Tom's RIGHT is +x, LEFT is −x; range x ∈ [−${config.arLeft}, +${config.arRight}].
+- z: in FRONT of Tom (toward learner) is +z, BEHIND is −z; range z ∈ [−${config.arBack}, +${config.arFront}].
+Lay them out like a real venue: large furniture (counters, shelves, machines) along sides/back; keep the spot right in front of Tom (small +z, x≈0) walkable; NEVER overlap; keep everything inside the box.
+For EACH given object return placement: x, z (floor meters), rotationY (degrees, 0 = facing +Z/the learner), sizeM (real-world HEIGHT in meters, e.g. shelf≈1.8, counter≈1.0, stool≈0.5).
+Return ONLY JSON using the EXACT same "en" strings given: {"placements":[{"en","x","z","rotationY","sizeM"}]}`;
+  const list = objects.map((o) => `- ${o.en}${o.zh ? ` (${o.zh})` : ""}`).join("\n");
+  const res = await client().chat.completions.create({
+    model: config.namingModel,
+    temperature: 0.3,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: `Venue: ${venue}\nObjects to place:\n${list}` },
+    ],
+  });
+  const raw = res.choices[0]?.message?.content ?? "{}";
+  const parsed = JSON.parse(raw) as { placements?: ({ en?: string } & Partial<Placement>)[] };
+  const out: Record<string, Placement> = {};
+  for (const p of parsed.placements ?? []) {
+    if (!p.en) continue;
+    out[p.en.trim().toLowerCase()] = clampPlacement(p as Placement, config);
+  }
+  return out;
+}
+
 /** Keep a placement inside the configured box; supply sane defaults if missing. */
 function clampPlacement(p: Placement | undefined, config: StudioConfig): Placement {
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
