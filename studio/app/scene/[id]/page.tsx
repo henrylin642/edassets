@@ -76,10 +76,10 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
           .map((a) => ({ name: a.nameEn, ...a.placement! }))}
       />
 
-      {sceneObjects.length > 0 && (() => {
-        const placed = sceneObjects.filter((a) => a.placement);
+      {assets.length > 0 && (() => {
+        const placed = assets.filter((a) => a.placement);
         const seen = new Set<string>();
-        const uniqModeled = sceneObjects.filter(
+        const uniqModeled = placed.filter(
           (a) => a.modelStatus === "done" && !seen.has(a.tagKey) && seen.add(a.tagKey),
         );
         const faces = uniqModeled.reduce((s, a) => s + (a.modelFaces ?? 0), 0);
@@ -103,19 +103,23 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
                     modelUrl: a.modelStatus === "done" ? a.modelUrl : null,
                     ...a.placement!,
                   }))}
-                  candidates={sceneObjects
+                  candidates={assets
                     .filter((a) => !a.placement)
-                    .map((a) => ({ id: a.id, name: a.nameEn, modelUrl: a.modelStatus === "done" ? a.modelUrl : null }))}
+                    .map((a) => ({
+                      id: a.id,
+                      name: a.type === "keyword" ? `${a.nameEn}（關鍵字）` : a.nameEn,
+                      modelUrl: a.modelStatus === "done" ? a.modelUrl : null,
+                    }))}
                 />
               </div>
               <div className="shrink-0 space-y-1.5 rounded-lg border border-gray-200 p-3 text-sm xl:w-56">
                 <div className="font-medium">場景統計</div>
-                {row("情境物件", String(sceneObjects.length))}
+                {row("物件總數", String(assets.length))}
                 {row("已擺放佈局", String(placed.length))}
                 {row("已生成 3D（去重）", String(uniqModeled.length))}
                 {row("總面數", faces.toLocaleString())}
                 {row("總大小", `${toMB(bytes)} MB`)}
-                <p className="pt-1 text-[11px] text-gray-400">重複物件（同 tag）只計一次；面數/大小僅計已生成 3D 的物件。</p>
+                <p className="pt-1 text-[11px] text-gray-400">統計已擺放物件；同 tag 重複只計一次；面數/大小僅計已生成 3D 者。</p>
               </div>
             </div>
           </section>
