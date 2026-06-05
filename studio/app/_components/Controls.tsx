@@ -20,6 +20,7 @@ import {
   clearSideViewAction,
   deleteSceneAction,
   replanLayoutAction,
+  generateLayoutConceptAction,
 } from "../actions";
 
 const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
@@ -232,6 +233,18 @@ export function ReplanLayoutButton({ scenarioId, count }: { scenarioId: string; 
       title="用 AI 把現有情境物件排進座標（不重生圖）"
       className="rounded border border-cyan-600 px-3 py-1.5 text-xs font-medium text-cyan-700 disabled:opacity-50">
       {pending ? "排佈局中…" : `🗺 重算佈局（${count}）`}
+    </button>
+  );
+}
+
+export function LayoutConceptButton({ scenarioId, has, count }: { scenarioId: string; has: boolean; count: number }) {
+  const [pending, start] = useTransition();
+  return (
+    <button disabled={pending || count === 0}
+      onClick={() => start(async () => { await generateLayoutConceptAction(scenarioId); })}
+      title="依佈局座標生成一張使用者視角的概念圖（約 30s）"
+      className="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+      {pending ? "🎨 依佈局生成中…（約 30s）" : has ? "↻ 重生佈局概念圖" : "🎨 依佈局生成概念圖"}
     </button>
   );
 }

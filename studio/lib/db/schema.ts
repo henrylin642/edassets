@@ -72,6 +72,9 @@ export const scenario = pgTable(
     conceptLigId: text("concept_lig_id"),
     /** background concept-image generation state */
     conceptStatus: modelStatus("concept_status").notNull().default("none"),
+    /** layout-faithful concept image (rendered from scene_object placement) */
+    layoutConceptUrl: text("layout_concept_url"),
+    layoutConceptLigId: text("layout_concept_lig_id"),
     concreteScene: text("concrete_scene"),
     arcType: arcType("arc_type"),
     source: scenarioSource("source").notNull().default("ai"),

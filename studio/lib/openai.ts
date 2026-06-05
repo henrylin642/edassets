@@ -215,6 +215,59 @@ export async function generateAltView(
   return Buffer.from(b64, "base64");
 }
 
+// ── layout-faithful concept art (from placement coordinates) ─────────────────
+/** Turn placement coords into a human spatial description (relative to Tom). */
+function describeLayout(objects: { name: string; x: number; z: number; sizeM: number }[]): string {
+  const behind: string[] = [], left: string[] = [], right: string[] = [], front: string[] = [];
+  for (const o of objects) {
+    const label = `a ${o.name} (~${o.sizeM}m tall)`;
+    if (o.z < -0.3) behind.push(label);
+    else if (o.x <= -1) left.push(label);
+    else if (o.x >= 1) right.push(label);
+    else front.push(label);
+  }
+  const part = (lead: string, arr: string[]) => (arr.length ? `${lead}: ${arr.join(", ")}.` : "");
+  return [
+    part("Directly behind Tom", behind),
+    part("To Tom's left side", left),
+    part("To Tom's right side", right),
+    part("In front of Tom, closer to the viewer", front),
+  ].filter(Boolean).join(" ");
+}
+
+/** Generate a wide establishing concept image that reflects the AR placement layout. */
+export async function generateLayoutConceptB64(
+  venue: string,
+  objects: { name: string; x: number; z: number; sizeM: number }[],
+  config: StudioConfig,
+): Promise<Buffer> {
+  const layout = describeLayout(objects);
+  const prompt =
+    `Wide-angle establishing shot of a ${venue}, viewed from the learner's position looking toward the center. ` +
+    `The main character (the person in the reference image) is a friendly English coach in staff uniform, standing at the ` +
+    `center facing the viewer, fully visible head to toe, not cropped. Arrange the venue props to match this layout — ` +
+    `${layout} Keep the area right in front of him clear and walkable. ${config.sceneStylePreset}. Warm and inviting, no readable text.`;
+  const c = client();
+  try {
+    const buf = await readFile(tomRefPath());
+    const file = await OpenAI.toFile(buf, "tom.png", { type: "image/png" });
+    const r = await c.images.edit({ model: config.gptImageModel, image: file, prompt, size: config.conceptSize });
+    const b64 = r.data?.[0]?.b64_json;
+    if (b64) return Buffer.from(b64, "base64");
+  } catch {
+    // no Tom ref → fall back to plain generate
+  }
+  const r = await c.images.generate({
+    model: config.gptImageModel,
+    prompt: `${prompt} The central character is Tom, a friendly older gentleman AI coach with grey hair, beard and glasses.`,
+    size: config.conceptSize,
+    quality: config.imageQuality,
+  });
+  const b64 = r.data?.[0]?.b64_json;
+  if (!b64) throw new Error("gpt-image returned no layout concept image");
+  return Buffer.from(b64, "base64");
+}
+
 // ── gpt-image-1: concept art with Tom reference ──────────────────────────────
 /** Resolve the Tom reference image path (env override or studio/assets/tom.png). */
 export function tomRefPath(): string {

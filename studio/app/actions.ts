@@ -19,6 +19,7 @@ import {
   deleteAsset,
   deleteScene,
   replanLayout,
+  generateLayoutConcept,
 } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
@@ -131,6 +132,12 @@ export async function deleteSceneAction(scenarioId: string) {
 /** Re-plan AR placement for an existing scene's objects (for scenes created before placement). */
 export async function replanLayoutAction(scenarioId: string) {
   await replanLayout(scenarioId);
+  revalidatePath(`/scene/${scenarioId}`);
+}
+
+/** Generate a layout-faithful concept image from placement coordinates (synchronous). */
+export async function generateLayoutConceptAction(scenarioId: string) {
+  await generateLayoutConcept(scenarioId);
   revalidatePath(`/scene/${scenarioId}`);
 }
 

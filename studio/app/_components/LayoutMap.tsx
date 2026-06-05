@@ -3,14 +3,20 @@
  * World: meters, Unity left-handed. Tom at origin (0,0) facing +Z (the user).
  * Drawn as a floor plan: +X to the right, +Z (front/user) toward the BOTTOM.
  */
+import { LayoutConceptButton } from "./Controls";
+
 type Obj = { name: string; x: number; z: number; rotationY: number; sizeM: number };
 
 export function LayoutMap({
   bounds,
   objects,
+  scenarioId,
+  conceptUrl,
 }: {
   bounds: { left: number; right: number; front: number; back: number };
   objects: Obj[];
+  scenarioId: string;
+  conceptUrl?: string | null;
 }) {
   if (objects.length === 0) return null;
 
@@ -27,9 +33,13 @@ export function LayoutMap({
 
   return (
     <section className="space-y-2">
-      <h2 className="text-lg font-semibold">
-        擺位佈局 <span className="text-sm font-normal text-gray-400">— 俯視圖（公尺，Tom 在原點面向使用者）（{objects.length}）</span>
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">
+          擺位佈局 <span className="text-sm font-normal text-gray-400">— 俯視圖（公尺，Tom 在原點面向使用者）（{objects.length}）</span>
+        </h2>
+        <LayoutConceptButton scenarioId={scenarioId} has={!!conceptUrl} count={objects.length} />
+      </div>
+      <div className="flex flex-col gap-3 lg:flex-row">
       <div className="overflow-auto rounded-lg border border-gray-200 bg-white p-2">
         <svg width={W + pad * 2} height={H + pad * 2} className="text-gray-600">
           {/* space bounds */}
@@ -62,6 +72,14 @@ export function LayoutMap({
           <polygon points={`${ox - 5},${oz + 9} ${ox + 5},${oz + 9} ${ox},${oz + 18}`} fill="#ec4899" />
           <text x={ox + 12} y={oz + 4} fontSize="11" fontWeight="bold" fill="#be185d">Tom</text>
         </svg>
+      </div>
+        {conceptUrl && (
+          <div className="flex-1 space-y-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={conceptUrl} alt="layout concept" className="w-full rounded-lg border border-gray-200 object-contain" />
+            <div className="text-[11px] text-gray-400">依佈局生成的概念圖（使用者視角，gpt-image 近似擺位，非公分級精準）</div>
+          </div>
+        )}
       </div>
       <p className="text-[11px] text-gray-400">圓圈大小 ≈ 物件實高；座標寫進 /api/feed 的 placement，供 Unity (AR Foundation) 端擺放。</p>
     </section>

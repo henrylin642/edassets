@@ -17,7 +17,7 @@ import { and, eq, sql, inArray } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
-import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements } from "./openai";
+import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements, generateLayoutConceptB64 } from "./openai";
 import type { PlannedObject } from "./openai";
 import { uploadImage } from "./lig";
 import {
@@ -129,6 +129,29 @@ export async function replanLayout(scenarioId: string): Promise<number> {
     }
   }
   return n;
+}
+
+/** Generate a layout-faithful concept image (from placement) and upload to LiG. Synchronous. */
+export async function generateLayoutConcept(scenarioId: string): Promise<string> {
+  const config = await getConfig();
+  const sc = (await db.select().from(scenario).where(eq(scenario.id, scenarioId)))[0];
+  if (!sc) throw new Error("scenario not found");
+  const objs = await db
+    .select()
+    .from(asset)
+    .where(and(eq(asset.scenarioId, scenarioId), eq(asset.type, "scene_object")));
+  const placed = objs
+    .filter((o) => o.placement)
+    .map((o) => ({ name: o.nameEn, x: o.placement!.x, z: o.placement!.z, sizeM: o.placement!.sizeM }));
+  if (placed.length === 0) throw new Error("此場景尚無佈局座標，請先按「重算佈局」");
+
+  const buf = await generateLayoutConceptB64(sc.venueCategory ?? sc.nameEn, placed, config);
+  const ligAsset = await uploadImage(buf, `layout-${sc.tagKey}`, "png", [sc.tagKey, "layout", "concept"]);
+  await db
+    .update(scenario)
+    .set({ layoutConceptUrl: ligAsset.url, layoutConceptLigId: ligAsset.id, updatedAt: new Date() })
+    .where(eq(scenario.id, scenarioId));
+  return ligAsset.url;
 }
 
 // ── concept image ────────────────────────────────────────────────────────────
