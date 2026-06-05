@@ -131,6 +131,18 @@ export async function replanLayout(scenarioId: string): Promise<number> {
   return n;
 }
 
+/** Persist hand-edited placements (from the 3D editor) back to assets. */
+export async function savePlacements(
+  items: { id: string; placement: { x: number; y?: number; z: number; rotationY: number; sizeM: number } }[],
+): Promise<number> {
+  let n = 0;
+  for (const it of items) {
+    await db.update(asset).set({ placement: it.placement, updatedAt: new Date() }).where(eq(asset.id, it.id));
+    n++;
+  }
+  return n;
+}
+
 /** Generate a layout-faithful concept image (from placement) and upload to LiG. Synchronous. */
 export async function generateLayoutConcept(scenarioId: string): Promise<string> {
   const config = await getConfig();

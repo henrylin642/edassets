@@ -22,6 +22,7 @@ function client() {
 export interface Placement {
   x: number; // +right / −left of Tom
   z: number; // +front (toward user) / −back
+  y?: number; // base elevation above the floor (m); 0 = on floor, ~1 = on a counter
   rotationY: number; // degrees about Y (0 = facing +Z / the user)
   sizeM: number; // real-world height in meters (GLB scaled to this)
 }
@@ -54,16 +55,17 @@ AR SCENE SPACE — place every scene_object in a real 3D room around the coach s
 Coordinate system (Unity, meters): the coach "Tom" stands at the ORIGIN (0,0) and FACES the learner along +Z.
 - x axis: Tom's RIGHT is +x, Tom's LEFT is −x. Allowed range x ∈ [−{LEFT}, +{RIGHT}].
 - z axis: in FRONT of Tom (toward the learner) is +z, BEHIND Tom is −z. Allowed range z ∈ [−{BACK}, +{FRONT}].
-For EACH scene_object also give "placement": {"x","z","rotationY","sizeM"} where
+For EACH scene_object also give "placement": {"x","z","y","rotationY","sizeM"} where
   x,z = floor position in meters (within the ranges above; keep |x|,|z| inside the box),
+  y = base elevation above the floor in meters: 0 for floor-standing furniture; for a SMALL item that normally rests ON a counter/table/shelf (e.g. cash register, coffee machine, microwave) set y to that surface height (~0.9–1.0) and place it at the same x,z as that surface,
   rotationY = facing in degrees (0 = facing +Z toward the learner, 90 = facing +X),
-  sizeM = the object's real-world HEIGHT in meters (e.g. shelf ≈ 1.8, counter ≈ 1.0, stool ≈ 0.5).
+  sizeM = the object's real-world HEIGHT in meters (e.g. shelf ≈ 1.8, counter ≈ 1.0, stool ≈ 0.5, coffee machine ≈ 0.4).
 Lay them out like a believable venue: large furniture (counters, shelves, machines) along the sides/back, leave the area right in front of Tom (small +z, x near 0) walkable, do NOT overlap objects, keep everything inside the box. keyword_objects do NOT get placement.
 
 Also give "name_en", "name_zh" for the venue, and "concept_prompt": a vivid scene description IN TRADITIONAL CHINESE (繁體中文) for a wide-angle concept illustration, drawn from the LEARNER'S viewpoint looking toward "Tom" (湯姆) at the centre — 湯姆是面向使用者的英語教練/店員。描述湯姆、空間，以及依上面座標擺放在他左右後方與前方的關鍵道具，讓整個情境被傳達。Write it as natural Traditional Chinese prose. Do NOT mention any readable text/signage.
 
 Return ONLY JSON:
-{"name_en","name_zh","concept_prompt","scene_objects":[{"en","zh","subject","placement":{"x","z","rotationY","sizeM"}}],"keyword_objects":[{"en","zh","subject"}]}`;
+{"name_en","name_zh","concept_prompt","scene_objects":[{"en","zh","subject","placement":{"x","z","y","rotationY","sizeM"}}],"keyword_objects":[{"en","zh","subject"}]}`;
 
 export async function generateScenePlan(venue: string, config: StudioConfig): Promise<ScenePlan> {
   const system = PLAN_SYSTEM.replace("{LEFT}", String(config.arLeft))
@@ -105,8 +107,8 @@ Coordinate system (Unity, meters): the coach "Tom" stands at the ORIGIN (0,0) an
 - x: Tom's RIGHT is +x, LEFT is −x; range x ∈ [−${config.arLeft}, +${config.arRight}].
 - z: in FRONT of Tom (toward learner) is +z, BEHIND is −z; range z ∈ [−${config.arBack}, +${config.arFront}].
 Lay them out like a real venue: large furniture (counters, shelves, machines) along sides/back; keep the spot right in front of Tom (small +z, x≈0) walkable; NEVER overlap; keep everything inside the box.
-For EACH given object return placement: x, z (floor meters), rotationY (degrees, 0 = facing +Z/the learner), sizeM (real-world HEIGHT in meters, e.g. shelf≈1.8, counter≈1.0, stool≈0.5).
-Return ONLY JSON using the EXACT same "en" strings given: {"placements":[{"en","x","z","rotationY","sizeM"}]}`;
+For EACH given object return placement: x, z (floor meters), y (base elevation: 0 on floor; ~0.9–1.0 for a small item that rests on a counter/table/shelf, placed at that surface's x,z), rotationY (degrees, 0 = facing +Z/the learner), sizeM (real-world HEIGHT in meters, e.g. shelf≈1.8, counter≈1.0, stool≈0.5, coffee machine≈0.4).
+Return ONLY JSON using the EXACT same "en" strings given: {"placements":[{"en","x","z","y","rotationY","sizeM"}]}`;
   const list = objects.map((o) => `- ${o.en}${o.zh ? ` (${o.zh})` : ""}`).join("\n");
   const res = await client().chat.completions.create({
     model: config.namingModel,
@@ -133,6 +135,7 @@ function clampPlacement(p: Placement | undefined, config: StudioConfig): Placeme
   return {
     x: clamp(Number(p?.x ?? 0), -config.arLeft, config.arRight),
     z: clamp(Number(p?.z ?? 1), -config.arBack, config.arFront),
+    y: clamp(Number(p?.y ?? 0), 0, 3),
     rotationY: ((Number(p?.rotationY ?? 0) % 360) + 360) % 360,
     sizeM: clamp(Number(p?.sizeM ?? 1), 0.05, 4),
   };

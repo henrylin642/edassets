@@ -20,6 +20,7 @@ import {
   deleteScene,
   replanLayout,
   generateLayoutConcept,
+  savePlacements,
 } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
@@ -138,6 +139,15 @@ export async function replanLayoutAction(scenarioId: string) {
 /** Generate a layout-faithful concept image from placement coordinates (synchronous). */
 export async function generateLayoutConceptAction(scenarioId: string) {
   await generateLayoutConcept(scenarioId);
+  revalidatePath(`/scene/${scenarioId}`);
+}
+
+/** Persist hand-edited placements from the 3D editor. */
+export async function savePlacementsAction(
+  scenarioId: string,
+  items: { id: string; placement: { x: number; y?: number; z: number; rotationY: number; sizeM: number } }[],
+) {
+  await savePlacements(items);
   revalidatePath(`/scene/${scenarioId}`);
 }
 

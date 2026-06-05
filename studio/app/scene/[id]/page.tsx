@@ -81,10 +81,12 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
             3D 場景預覽 <span className="text-sm font-normal text-gray-400">— 依座標擺放已生成的 GLB</span>
           </h2>
           <SceneViewer
+            scenarioId={sc.id}
             bounds={{ left: config.arLeft, right: config.arRight, front: config.arFront, back: config.arBack }}
             objects={sceneObjects
               .filter((a) => a.placement)
               .map((a) => ({
+                id: a.id,
                 name: a.nameEn,
                 modelUrl: a.modelStatus === "done" ? a.modelUrl : null,
                 ...a.placement!,
