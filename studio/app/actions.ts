@@ -17,7 +17,9 @@ import {
   request3dAll,
   addObjectAuto,
   deleteAsset,
+  deleteScene,
 } from "@/lib/pipeline";
+import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
 
@@ -116,6 +118,13 @@ export async function deleteAssetAction(id: string, scenarioId?: string) {
   await deleteAsset(id);
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
+}
+
+/** Delete an entire scene and all its objects, then go back to the dashboard. */
+export async function deleteSceneAction(scenarioId: string) {
+  await deleteScene(scenarioId);
+  revalidatePath("/");
+  redirect("/");
 }
 
 /** Manually add a custom object to a scene. */

@@ -529,6 +529,17 @@ export async function deleteAsset(id: string): Promise<void> {
   await db.delete(asset).where(eq(asset.id, id));
 }
 
+/** Delete a whole scene: its assets (side_view + generation_job cascade) then the scenario row. */
+export async function deleteScene(scenarioId: string): Promise<void> {
+  const rows = await db
+    .select({ id: asset.id })
+    .from(asset)
+    .where(eq(asset.scenarioId, scenarioId));
+  await Promise.all(rows.map((r) => rm(pendingPath(r.id), { force: true }).catch(() => {})));
+  await db.delete(asset).where(eq(asset.scenarioId, scenarioId));
+  await db.delete(scenario).where(eq(scenario.id, scenarioId));
+}
+
 /** Manually add a custom object to a scene (pending). */
 export async function addObject(
   scenarioId: string,

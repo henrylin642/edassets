@@ -18,6 +18,7 @@ import {
   batch3dAction,
   sideViewAction,
   clearSideViewAction,
+  deleteSceneAction,
 } from "../actions";
 
 const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
@@ -219,6 +220,17 @@ export function SideViewButton({ id, scenarioId, status, has }: { id: string; sc
         </button>
       )}
     </span>
+  );
+}
+
+export function DeleteSceneButton({ scenarioId, name }: { scenarioId: string; name: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <button disabled={pending}
+      onClick={() => { if (confirm(`刪除整個場景「${name}」及其所有物件、側視圖？此動作無法復原。`)) start(async () => { await deleteSceneAction(scenarioId); }); }}
+      className="rounded border border-red-400 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
+      {pending ? "刪除中…" : "🗑 刪除場景"}
+    </button>
   );
 }
 
