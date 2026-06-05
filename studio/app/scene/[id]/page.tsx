@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton } from "@/app/_components/Controls";
 import { AssetCard } from "@/app/_components/AssetCard";
 import { LayoutMap } from "@/app/_components/LayoutMap";
+import { SceneViewer } from "@/app/_components/SceneViewer";
 import { ensureWorker } from "@/lib/worker";
 import { getConfig } from "@/lib/settings";
 
@@ -73,6 +74,24 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
           .filter((a) => a.placement)
           .map((a) => ({ name: a.nameEn, ...a.placement! }))}
       />
+
+      {sceneObjects.some((a) => a.placement) && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold">
+            3D 場景預覽 <span className="text-sm font-normal text-gray-400">— 依座標擺放已生成的 GLB</span>
+          </h2>
+          <SceneViewer
+            bounds={{ left: config.arLeft, right: config.arRight, front: config.arFront, back: config.arBack }}
+            objects={sceneObjects
+              .filter((a) => a.placement)
+              .map((a) => ({
+                name: a.nameEn,
+                modelUrl: a.modelStatus === "done" ? a.modelUrl : null,
+                ...a.placement!,
+              }))}
+          />
+        </section>
+      )}
 
       <Section title="情境物件 scene objects" hint="維持沉浸感的場景道具" items={sceneObjects} scenarioId={id} type="scene_object" addLabel="情境物件" />
       <Section title="關鍵字物件 keyword objects" hint="用戶練習用的關鍵字實物" items={keywordObjects} scenarioId={id} type="keyword" addLabel="關鍵字物件" />
