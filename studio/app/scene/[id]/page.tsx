@@ -8,6 +8,7 @@ import { LayoutMap } from "@/app/_components/LayoutMap";
 import { SceneViewer } from "@/app/_components/SceneViewer";
 import { ensureWorker } from "@/lib/worker";
 import { getConfig } from "@/lib/settings";
+import { toMB } from "@/lib/meshinfo";
 
 export const dynamic = "force-dynamic";
 const { asset, scenario } = schema;
@@ -75,25 +76,51 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
           .map((a) => ({ name: a.nameEn, ...a.placement! }))}
       />
 
-      {sceneObjects.some((a) => a.placement) && (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">
-            3D 場景預覽 <span className="text-sm font-normal text-gray-400">— 依座標擺放已生成的 GLB</span>
-          </h2>
-          <SceneViewer
-            scenarioId={sc.id}
-            bounds={{ left: config.arLeft, right: config.arRight, front: config.arFront, back: config.arBack }}
-            objects={sceneObjects
-              .filter((a) => a.placement)
-              .map((a) => ({
-                id: a.id,
-                name: a.nameEn,
-                modelUrl: a.modelStatus === "done" ? a.modelUrl : null,
-                ...a.placement!,
-              }))}
-          />
-        </section>
-      )}
+      {sceneObjects.length > 0 && (() => {
+        const placed = sceneObjects.filter((a) => a.placement);
+        const seen = new Set<string>();
+        const uniqModeled = sceneObjects.filter(
+          (a) => a.modelStatus === "done" && !seen.has(a.tagKey) && seen.add(a.tagKey),
+        );
+        const faces = uniqModeled.reduce((s, a) => s + (a.modelFaces ?? 0), 0);
+        const bytes = uniqModeled.reduce((s, a) => s + (a.modelBytes ?? 0), 0);
+        const row = (label: string, value: string) => (
+          <div className="flex justify-between gap-2"><span className="text-gray-500">{label}</span><span className="font-mono">{value}</span></div>
+        );
+        return (
+          <section className="space-y-2">
+            <h2 className="text-lg font-semibold">
+              3D 場景預覽 <span className="text-sm font-normal text-gray-400">— 依座標擺放已生成的 GLB</span>
+            </h2>
+            <div className="flex flex-col gap-3 xl:flex-row">
+              <div className="min-w-0 flex-1">
+                <SceneViewer
+                  scenarioId={sc.id}
+                  bounds={{ left: config.arLeft, right: config.arRight, front: config.arFront, back: config.arBack }}
+                  objects={placed.map((a) => ({
+                    id: a.id,
+                    name: a.nameEn,
+                    modelUrl: a.modelStatus === "done" ? a.modelUrl : null,
+                    ...a.placement!,
+                  }))}
+                  candidates={sceneObjects
+                    .filter((a) => !a.placement)
+                    .map((a) => ({ id: a.id, name: a.nameEn, modelUrl: a.modelStatus === "done" ? a.modelUrl : null }))}
+                />
+              </div>
+              <div className="shrink-0 space-y-1.5 rounded-lg border border-gray-200 p-3 text-sm xl:w-56">
+                <div className="font-medium">場景統計</div>
+                {row("情境物件", String(sceneObjects.length))}
+                {row("已擺放佈局", String(placed.length))}
+                {row("已生成 3D（去重）", String(uniqModeled.length))}
+                {row("總面數", faces.toLocaleString())}
+                {row("總大小", `${toMB(bytes)} MB`)}
+                <p className="pt-1 text-[11px] text-gray-400">重複物件（同 tag）只計一次；面數/大小僅計已生成 3D 的物件。</p>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       <Section title="情境物件 scene objects" hint="維持沉浸感的場景道具" items={sceneObjects} scenarioId={id} type="scene_object" addLabel="情境物件" />
       <Section title="關鍵字物件 keyword objects" hint="用戶練習用的關鍵字實物" items={keywordObjects} scenarioId={id} type="keyword" addLabel="關鍵字物件" />

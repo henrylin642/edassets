@@ -37,10 +37,13 @@ export function SceneViewer({
   scenarioId,
   bounds,
   objects,
+  candidates = [],
 }: {
   scenarioId: string;
   bounds: { left: number; right: number; front: number; back: number };
   objects: ViewerObject[];
+  /** scene objects not yet in the layout — can be added into the 3D scene */
+  candidates?: { id: string; name: string; modelUrl?: string | null }[];
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -51,6 +54,8 @@ export function SceneViewer({
   const [sel, setSel] = useState<Sel | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [added, setAdded] = useState<string[]>([]);
+  const [pick, setPick] = useState("");
 
   // imperative API set up inside the three.js effect, called from React handlers
   const api = useRef<{
@@ -58,6 +63,7 @@ export function SceneViewer({
     setEdit: (on: boolean) => void;
     apply: (patch: Partial<Sel>) => void;
     collect: () => SaveItem[];
+    addObject: (o: { id: string; name: string; modelUrl?: string | null }) => void;
   } | null>(null);
 
   useEffect(() => {
@@ -142,11 +148,11 @@ export function SceneViewer({
     const loader = new GLTFLoader();
     loader.setDRACOLoader(draco);
 
-    for (const o of objects) {
+    const buildObject = (o: ViewerObject) => {
       const holder = makeHolder(o);
       if (!o.modelUrl) {
         addUnitBox(holder);
-        continue;
+        return holder;
       }
       loader.load(
         o.modelUrl,
@@ -173,7 +179,10 @@ export function SceneViewer({
           setStatus((s) => ({ ...s, failed: s.failed + 1 }));
         },
       );
-    }
+      return holder;
+    };
+
+    for (const o of objects) buildObject(o);
 
     // selection + transform gizmo
     const boxHelper = new THREE.BoxHelper(new THREE.Object3D(), 0xfbbf24);
@@ -266,6 +275,11 @@ export function SceneViewer({
             sizeM: +h.scale.x.toFixed(3),
           },
         })),
+      addObject: (o) => {
+        const holder = buildObject({ id: o.id, name: o.name, modelUrl: o.modelUrl, x: 0, y: 0, z: 2, rotationY: 0, sizeM: 1 });
+        select(holder);
+        setDirty(true);
+      },
     };
     control.enabled = false;
     gizmo.visible = false;
@@ -312,6 +326,9 @@ export function SceneViewer({
   // push React UI state → three.js
   useEffect(() => { api.current?.setEdit(edit); }, [edit]);
   useEffect(() => { api.current?.setMode(mode); }, [mode]);
+  useEffect(() => { setAdded([]); setPick(""); }, [objects]);
+
+  const addable = candidates.filter((c) => !added.includes(c.id));
 
   const save = async () => {
     const items = api.current?.collect() ?? [];
@@ -357,6 +374,31 @@ export function SceneViewer({
           </>
         )}
       </div>
+
+      {edit && addable.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-gray-300 p-2 text-xs">
+          <span className="text-gray-500">加入情境物件：</span>
+          <select value={pick} onChange={(e) => setPick(e.target.value)} className="rounded border border-gray-300 px-2 py-1">
+            <option value="">選擇物件…</option>
+            {addable.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}{c.modelUrl ? "" : "（無 3D）"}</option>
+            ))}
+          </select>
+          <button
+            disabled={!pick}
+            onClick={() => {
+              const c = addable.find((x) => x.id === pick);
+              if (!c) return;
+              api.current?.addObject(c);
+              setAdded((a) => [...a, c.id]);
+              setPick("");
+            }}
+            className="rounded bg-gray-700 px-2 py-1 font-medium text-white disabled:opacity-40">
+            ➕ 加入場景
+          </button>
+          <span className="text-gray-400">加入後會放在 Tom 前方，拖曳/滑桿調整再儲存。</span>
+        </div>
+      )}
 
       {edit && sel && (
         <div className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-2">
