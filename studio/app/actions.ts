@@ -151,16 +151,24 @@ export async function savePlacementsAction(
   revalidatePath(`/scene/${scenarioId}`);
 }
 
-/** Manually add a custom object to a scene. */
-export async function addObjectAction(formData: FormData) {
+export type AddObjectResult = { status: "added" | "exists" | "empty" | "error"; name?: string; message?: string };
+
+/** Manually add a custom object to a scene. Returns a status for UI feedback. */
+export async function addObjectAction(formData: FormData): Promise<AddObjectResult> {
   const scenarioId = String(formData.get("scenarioId") ?? "");
   const type = String(formData.get("type") ?? "scene_object") as "scene_object" | "keyword";
   const nameEn = String(formData.get("nameEn") ?? "").trim();
   const nameZh = String(formData.get("nameZh") ?? "").trim();
   const subject = String(formData.get("subject") ?? "").trim();
-  if (!scenarioId || (!nameEn && !nameZh)) return;
-  await addObjectAuto(scenarioId, { type, nameEn, nameZh, subject });
-  revalidatePath(`/scene/${scenarioId}`);
+  if (!scenarioId || (!nameEn && !nameZh)) return { status: "empty" };
+  try {
+    const r = await addObjectAuto(scenarioId, { type, nameEn, nameZh, subject });
+    revalidatePath(`/scene/${scenarioId}`);
+    if (r.ok) return { status: "added", name: r.asset.nameEn };
+    return { status: r.reason === "duplicate" ? "exists" : "empty" };
+  } catch (e) {
+    return { status: "error", message: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 export async function saveSettingsAction(formData: FormData) {

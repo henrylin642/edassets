@@ -604,12 +604,14 @@ export async function deleteScene(scenarioId: string): Promise<void> {
 }
 
 /** Manually add a custom object to a scene (pending). */
+export type AddResult = { ok: true; asset: Asset } | { ok: false; reason: "empty" | "duplicate" };
+
 export async function addObject(
   scenarioId: string,
   input: { type: "scene_object" | "keyword"; nameEn: string; nameZh?: string; subject?: string },
-): Promise<Asset | null> {
+): Promise<AddResult> {
   const en = input.nameEn.trim();
-  if (!en) return null;
+  if (!en) return { ok: false, reason: "empty" };
   const [row] = await db
     .insert(asset)
     .values({
@@ -624,14 +626,14 @@ export async function addObject(
     })
     .onConflictDoNothing({ target: [asset.type, asset.tagKey] })
     .returning();
-  return row ?? null;
+  return row ? { ok: true, asset: row } : { ok: false, reason: "duplicate" };
 }
 
 /** Add an object; if English name is blank, AI-translate from the Chinese name. */
 export async function addObjectAuto(
   scenarioId: string,
   input: { type: "scene_object" | "keyword"; nameEn?: string; nameZh?: string; subject?: string },
-): Promise<Asset | null> {
+): Promise<AddResult> {
   let en = input.nameEn?.trim() ?? "";
   let subject = input.subject?.trim() ?? "";
   const zh = input.nameZh?.trim() ?? "";
@@ -642,7 +644,7 @@ export async function addObjectAuto(
     en = t.en;
     if (!subject) subject = t.subject;
   }
-  if (!en) return null;
+  if (!en) return { ok: false, reason: "empty" };
   return addObject(scenarioId, { type: input.type, nameEn: en, nameZh: zh || undefined, subject });
 }
 

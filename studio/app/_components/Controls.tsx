@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   createSceneAction,
@@ -155,14 +155,29 @@ export function GenerateButton({ id, scenarioId, label = "▶ 生成此物件" }
 
 export function AddObjectForm({ scenarioId, type, label }: { scenarioId: string; type: "scene_object" | "keyword"; label: string }) {
   const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   return (
-    <form action={(fd) => start(() => addObjectAction(fd))} className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-gray-300 p-3">
+    <form
+      ref={formRef}
+      action={(fd) => start(async () => {
+        const r = await addObjectAction(fd);
+        if (r.status === "added") { setMsg({ kind: "ok", text: `已新增「${r.name}」（待生成，按 ▶ 生成此物件）` }); formRef.current?.reset(); }
+        else if (r.status === "exists") setMsg({ kind: "warn", text: "此物件已存在（全站同名唯一，可能在別的場景），未重複新增。換個名稱試試。" });
+        else if (r.status === "empty") setMsg({ kind: "warn", text: "請至少填中文名或英文名。" });
+        else setMsg({ kind: "err", text: `新增失敗：${r.message ?? "未知錯誤"}` });
+      })}
+      className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-gray-300 p-3"
+    >
       <input type="hidden" name="scenarioId" value={scenarioId} />
       <input type="hidden" name="type" value={type} />
       <label className="text-xs text-gray-500">中文名<input name="nameZh" placeholder="微波爐" className="mt-0.5 block w-28 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
       <label className="text-xs text-gray-500">英文名（留空 AI 翻譯）<input name="nameEn" placeholder="自動翻譯" className="mt-0.5 block w-32 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
       <label className="text-xs text-gray-500">生圖描述（選填）<input name="subject" placeholder="留空 AI 自動產生" className="mt-0.5 block w-52 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
       <button disabled={pending} className="rounded bg-gray-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{pending ? "新增中…" : `+ 新增${label}`}</button>
+      {msg && (
+        <span className={`w-full text-xs ${msg.kind === "ok" ? "text-green-600" : msg.kind === "warn" ? "text-amber-600" : "text-red-600"}`}>{msg.text}</span>
+      )}
     </form>
   );
 }
