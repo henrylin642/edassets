@@ -21,7 +21,10 @@ import {
   deleteSceneAction,
   replanLayoutAction,
   generateLayoutConceptAction,
+  attachExistingAction,
 } from "../actions";
+import type { AddObjectResult } from "../actions";
+import type { KeywordMatch } from "@/lib/pipeline";
 
 const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
 
@@ -156,29 +159,87 @@ export function GenerateButton({ id, scenarioId, label = "▶ 生成此物件" }
 export function AddObjectForm({ scenarioId, type, label }: { scenarioId: string; type: "scene_object" | "keyword"; label: string }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
+  const [dup, setDup] = useState<{ matches: KeywordMatch[]; resolved: { en: string; zh: string; subject: string } } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const handle = (r: AddObjectResult) => {
+    if (r.status === "added") { setMsg({ kind: "ok", text: `已加入「${r.name}」` }); setDup(null); formRef.current?.reset(); }
+    else if (r.status === "duplicate") { setMsg(null); setDup({ matches: r.matches, resolved: r.resolved }); }
+    else if (r.status === "exists") setMsg({ kind: "warn", text: "此物件已存在，未重複新增。" });
+    else if (r.status === "empty") setMsg({ kind: "warn", text: "請至少填中文名或英文名。" });
+    else setMsg({ kind: "err", text: `操作失敗：${r.message ?? "未知錯誤"}` });
+  };
+
+  const forceAdd = () => {
+    if (!dup) return;
+    start(async () => {
+      const fd = new FormData();
+      fd.set("scenarioId", scenarioId); fd.set("type", type); fd.set("force", "1");
+      fd.set("nameEn", dup.resolved.en); fd.set("nameZh", dup.resolved.zh); fd.set("subject", dup.resolved.subject);
+      handle(await addObjectAction(fd));
+    });
+  };
+
   return (
-    <form
-      ref={formRef}
-      action={(fd) => start(async () => {
-        const r = await addObjectAction(fd);
-        if (r.status === "added") { setMsg({ kind: "ok", text: `已新增「${r.name}」（待生成，按 ▶ 生成此物件）` }); formRef.current?.reset(); }
-        else if (r.status === "exists") setMsg({ kind: "warn", text: "此物件已存在（全站同名唯一，可能在別的場景），未重複新增。換個名稱試試。" });
-        else if (r.status === "empty") setMsg({ kind: "warn", text: "請至少填中文名或英文名。" });
-        else setMsg({ kind: "err", text: `新增失敗：${r.message ?? "未知錯誤"}` });
-      })}
-      className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-gray-300 p-3"
-    >
-      <input type="hidden" name="scenarioId" value={scenarioId} />
-      <input type="hidden" name="type" value={type} />
-      <label className="text-xs text-gray-500">中文名<input name="nameZh" placeholder="微波爐" className="mt-0.5 block w-28 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
-      <label className="text-xs text-gray-500">英文名（留空 AI 翻譯）<input name="nameEn" placeholder="自動翻譯" className="mt-0.5 block w-32 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
-      <label className="text-xs text-gray-500">生圖描述（選填）<input name="subject" placeholder="留空 AI 自動產生" className="mt-0.5 block w-52 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
-      <button disabled={pending} className="rounded bg-gray-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{pending ? "新增中…" : `+ 新增${label}`}</button>
-      {msg && (
-        <span className={`w-full text-xs ${msg.kind === "ok" ? "text-green-600" : msg.kind === "warn" ? "text-amber-600" : "text-red-600"}`}>{msg.text}</span>
+    <div className="space-y-2">
+      <form
+        ref={formRef}
+        action={(fd) => start(async () => handle(await addObjectAction(fd)))}
+        className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-gray-300 p-3"
+      >
+        <input type="hidden" name="scenarioId" value={scenarioId} />
+        <input type="hidden" name="type" value={type} />
+        <label className="text-xs text-gray-500">中文名<input name="nameZh" placeholder="微波爐" className="mt-0.5 block w-28 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
+        <label className="text-xs text-gray-500">英文名（留空 AI 翻譯）<input name="nameEn" placeholder="自動翻譯" className="mt-0.5 block w-32 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
+        <label className="text-xs text-gray-500">生圖描述（選填）<input name="subject" placeholder="留空 AI 自動產生" className="mt-0.5 block w-52 rounded border border-gray-300 px-2 py-1 text-sm" /></label>
+        <button disabled={pending} className="rounded bg-gray-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{pending ? "處理中…" : `+ 新增${label}`}</button>
+        {msg && (
+          <span className={`w-full text-xs ${msg.kind === "ok" ? "text-green-600" : msg.kind === "warn" ? "text-amber-600" : "text-red-600"}`}>{msg.text}</span>
+        )}
+      </form>
+
+      {dup && (
+        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
+          <div className="text-xs font-medium text-amber-800">
+            已有「{dup.resolved.en}」相同關鍵字的物件（{dup.matches.length}）。要沿用既有，還是新增一個不同的變體？
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {dup.matches.map((m) => {
+              const thumb = m.imageUrl ?? (m.status === "review" ? `/api/preview/${m.id}` : null);
+              return (
+                <div key={m.id} className="w-32 space-y-1 rounded border border-gray-200 bg-white p-1.5">
+                  <div className="aspect-square w-full overflow-hidden rounded bg-gray-50">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumb} alt={m.nameEn} className="h-full w-full object-contain" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[10px] text-gray-400">無圖</div>
+                    )}
+                  </div>
+                  <div className="text-[11px] font-medium">{m.nameEn} <span className="text-gray-400">{m.nameZh}</span></div>
+                  <div className="text-[10px] text-gray-400">
+                    {m.modelStatus === "done" ? "✓ 有 3D" : "無 3D"}{m.originScene ? ` · 來自 ${m.originScene}` : ""}
+                  </div>
+                  <button disabled={pending}
+                    onClick={() => start(async () => handle(await attachExistingAction(scenarioId, m.id)))}
+                    className="w-full rounded bg-green-600 px-1 py-1 text-[11px] font-medium text-white disabled:opacity-50">
+                    ✓ 在本場景使用
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            <button disabled={pending} onClick={forceAdd}
+              className="rounded bg-gray-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+              ＋ 仍要新增不同的「{dup.resolved.en}」
+            </button>
+            <button disabled={pending} onClick={() => setDup(null)}
+              className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-600 disabled:opacity-50">取消</button>
+          </div>
+        </div>
       )}
-    </form>
+    </div>
   );
 }
 

@@ -191,6 +191,18 @@ export const sideView = pgTable(
   (t) => [primaryKey({ columns: [t.assetId, t.kind] })],
 );
 
+// ── scene_asset (many-to-many: an asset reused across scenes) ────────────
+// An asset's origin is asset.scenario_id; additional scene memberships live here.
+export const sceneAsset = pgTable(
+  "scene_asset",
+  {
+    scenarioId: uuid("scenario_id").notNull().references(() => scenario.id, { onDelete: "cascade" }),
+    assetId: uuid("asset_id").notNull().references(() => asset.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.scenarioId, t.assetId] }), index("scene_asset_scene_idx").on(t.scenarioId)],
+);
+
 // ── app_setting (single-row config for the settings center) ─────────────
 export const appSetting = pgTable("app_setting", {
   id: integer("id").primaryKey().default(1),
@@ -205,3 +217,4 @@ export type Asset = typeof asset.$inferSelect;
 export type NewAsset = typeof asset.$inferInsert;
 export type GenerationJob = typeof generationJob.$inferSelect;
 export type NewGenerationJob = typeof generationJob.$inferInsert;
+export type SceneAsset = typeof sceneAsset.$inferSelect;

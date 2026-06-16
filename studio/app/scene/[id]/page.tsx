@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton } from "@/app/_components/Controls";
 import { AssetCard } from "@/app/_components/AssetCard";
@@ -11,7 +11,7 @@ import { getConfig } from "@/lib/settings";
 import { toMB } from "@/lib/meshinfo";
 
 export const dynamic = "force-dynamic";
-const { asset, scenario } = schema;
+const { asset, scenario, sceneAsset } = schema;
 
 export default async function ScenePage({ params }: { params: Promise<{ id: string }> }) {
   ensureWorker();
@@ -20,7 +20,13 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
   if (!sc) notFound();
 
   const config = await getConfig();
-  const assets = await db.select().from(asset).where(eq(asset.scenarioId, id)).orderBy(asc(asset.nameEn));
+  const direct = await db.select().from(asset).where(eq(asset.scenarioId, id)).orderBy(asc(asset.nameEn));
+  const memberIds = (
+    await db.select({ assetId: sceneAsset.assetId }).from(sceneAsset).where(eq(sceneAsset.scenarioId, id))
+  ).map((r) => r.assetId);
+  const members = memberIds.length ? await db.select().from(asset).where(inArray(asset.id, memberIds)) : [];
+  const seenIds = new Set(direct.map((a) => a.id));
+  const assets = [...direct, ...members.filter((m) => !seenIds.has(m.id))].sort((a, b) => a.nameEn.localeCompare(b.nameEn));
   const sceneObjects = assets.filter((a) => a.type === "scene_object");
   const keywordObjects = assets.filter((a) => a.type === "keyword");
   const pending = assets.filter((a) => a.status === "pending").length;

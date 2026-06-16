@@ -13,7 +13,7 @@
 
 import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import path from "node:path";
-import { and, eq, sql, inArray } from "drizzle-orm";
+import { and, eq, sql, inArray, or, arrayContains } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
@@ -32,7 +32,7 @@ import {
 import { buildTags, toTag } from "./prompt";
 import { pngSize, glbFaceCount } from "./meshinfo";
 
-const { scenario, asset, generationJob, sideView } = schema;
+const { scenario, asset, generationJob, sideView, sceneAsset } = schema;
 
 export type PipelineMode = "review" | "auto";
 
@@ -604,14 +604,79 @@ export async function deleteScene(scenarioId: string): Promise<void> {
 }
 
 /** Manually add a custom object to a scene (pending). */
-export type AddResult = { ok: true; asset: Asset } | { ok: false; reason: "empty" | "duplicate" };
+export type KeywordMatch = {
+  id: string;
+  nameEn: string;
+  nameZh: string | null;
+  imageUrl: string | null;
+  status: string;
+  modelStatus: string;
+  modelUrl: string | null;
+  originScene: string | null;
+};
+export type AddResult =
+  | { ok: true; asset: Asset }
+  | { ok: false; reason: "empty" | "exists" }
+  | { ok: false; reason: "duplicate"; matches: KeywordMatch[]; resolved: { en: string; zh: string; subject: string } };
+
+/** Existing keyword assets sharing this tag, not already in the given scene (origin or membership). */
+export async function findKeywordMatches(scenarioId: string, baseTag: string): Promise<KeywordMatch[]> {
+  const rows = await db
+    .select({
+      id: asset.id,
+      nameEn: asset.nameEn,
+      nameZh: asset.nameZh,
+      imageUrl: asset.imageUrl,
+      status: asset.status,
+      modelStatus: asset.modelStatus,
+      modelUrl: asset.modelUrl,
+      scenarioId: asset.scenarioId,
+      originScene: scenario.nameEn,
+    })
+    .from(asset)
+    .leftJoin(scenario, eq(scenario.id, asset.scenarioId))
+    .where(and(eq(asset.type, "keyword"), or(eq(asset.tagKey, baseTag), arrayContains(asset.tags, [baseTag]))));
+  const mem = await db
+    .select({ assetId: sceneAsset.assetId })
+    .from(sceneAsset)
+    .where(eq(sceneAsset.scenarioId, scenarioId));
+  const inScene = new Set(mem.map((m) => m.assetId));
+  return rows
+    .filter((r) => r.scenarioId !== scenarioId && !inScene.has(r.id))
+    .map(({ scenarioId: _s, ...m }) => m);
+}
+
+/** Add an existing asset to a scene (reuse across scenes; no regeneration). */
+export async function attachExisting(scenarioId: string, assetId: string): Promise<Asset | null> {
+  await db.insert(sceneAsset).values({ scenarioId, assetId }).onConflictDoNothing();
+  return (await getAsset(assetId)) ?? null;
+}
+
+/** Find the next free tag for a variant: base, base-2, base-3 … */
+async function nextVariantTag(baseTag: string): Promise<string> {
+  const taken = new Set(
+    (
+      await db
+        .select({ tagKey: asset.tagKey })
+        .from(asset)
+        .where(and(eq(asset.type, "keyword"), or(eq(asset.tagKey, baseTag), sql`${asset.tagKey} LIKE ${baseTag + "-%"}`)))
+    ).map((r) => r.tagKey),
+  );
+  if (!taken.has(baseTag)) return baseTag;
+  let n = 2;
+  while (taken.has(`${baseTag}-${n}`)) n++;
+  return `${baseTag}-${n}`;
+}
 
 export async function addObject(
   scenarioId: string,
-  input: { type: "scene_object" | "keyword"; nameEn: string; nameZh?: string; subject?: string },
+  input: { type: "scene_object" | "keyword"; nameEn: string; nameZh?: string; subject?: string; tagKey?: string },
 ): Promise<AddResult> {
   const en = input.nameEn.trim();
   if (!en) return { ok: false, reason: "empty" };
+  const baseTag = toTag(en);
+  const tags = buildTags(en, input.nameZh);
+  if (!tags.includes(baseTag)) tags.unshift(baseTag); // keep the keyword for AR lookup even on variants
   const [row] = await db
     .insert(asset)
     .values({
@@ -620,19 +685,25 @@ export async function addObject(
       nameEn: en,
       nameZh: input.nameZh?.trim() || null,
       imagePrompt: input.subject?.trim() || `a ${en}`,
-      tagKey: toTag(en),
-      tags: buildTags(en, input.nameZh),
+      tagKey: input.tagKey ?? baseTag,
+      tags,
       status: "pending",
     })
     .onConflictDoNothing({ target: [asset.type, asset.tagKey] })
     .returning();
-  return row ? { ok: true, asset: row } : { ok: false, reason: "duplicate" };
+  if (!row) return { ok: false, reason: "exists" }; // (type, tagKey) already taken
+  return { ok: true, asset: row };
 }
 
-/** Add an object; if English name is blank, AI-translate from the Chinese name. */
+/**
+ * Add an object; if English name is blank, AI-translate from the Chinese name.
+ * For keywords, detects existing same-keyword assets and returns them for the
+ * manager to choose reuse vs. new variant (unless `force` creates a variant).
+ */
 export async function addObjectAuto(
   scenarioId: string,
   input: { type: "scene_object" | "keyword"; nameEn?: string; nameZh?: string; subject?: string },
+  opts?: { force?: boolean },
 ): Promise<AddResult> {
   let en = input.nameEn?.trim() ?? "";
   let subject = input.subject?.trim() ?? "";
@@ -645,6 +716,17 @@ export async function addObjectAuto(
     if (!subject) subject = t.subject;
   }
   if (!en) return { ok: false, reason: "empty" };
+  const baseTag = toTag(en);
+
+  if (input.type === "keyword") {
+    if (!opts?.force) {
+      const matches = await findKeywordMatches(scenarioId, baseTag);
+      if (matches.length) return { ok: false, reason: "duplicate", matches, resolved: { en, zh, subject } };
+    }
+    // forced variant (or no collision): pick a free tag so multiple variants can coexist
+    const tagKey = await nextVariantTag(baseTag);
+    return addObject(scenarioId, { type: input.type, nameEn: en, nameZh: zh || undefined, subject, tagKey });
+  }
   return addObject(scenarioId, { type: input.type, nameEn: en, nameZh: zh || undefined, subject });
 }
 

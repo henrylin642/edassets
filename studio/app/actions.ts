@@ -21,7 +21,9 @@ import {
   replanLayout,
   generateLayoutConcept,
   savePlacements,
+  attachExisting,
 } from "@/lib/pipeline";
+import type { KeywordMatch } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
@@ -151,7 +153,12 @@ export async function savePlacementsAction(
   revalidatePath(`/scene/${scenarioId}`);
 }
 
-export type AddObjectResult = { status: "added" | "exists" | "empty" | "error"; name?: string; message?: string };
+export type AddObjectResult =
+  | { status: "added"; name: string }
+  | { status: "exists" }
+  | { status: "empty" }
+  | { status: "error"; message: string }
+  | { status: "duplicate"; matches: KeywordMatch[]; resolved: { en: string; zh: string; subject: string } };
 
 /** Manually add a custom object to a scene. Returns a status for UI feedback. */
 export async function addObjectAction(formData: FormData): Promise<AddObjectResult> {
@@ -160,15 +167,26 @@ export async function addObjectAction(formData: FormData): Promise<AddObjectResu
   const nameEn = String(formData.get("nameEn") ?? "").trim();
   const nameZh = String(formData.get("nameZh") ?? "").trim();
   const subject = String(formData.get("subject") ?? "").trim();
+  const force = String(formData.get("force") ?? "") === "1";
   if (!scenarioId || (!nameEn && !nameZh)) return { status: "empty" };
   try {
-    const r = await addObjectAuto(scenarioId, { type, nameEn, nameZh, subject });
-    revalidatePath(`/scene/${scenarioId}`);
-    if (r.ok) return { status: "added", name: r.asset.nameEn };
-    return { status: r.reason === "duplicate" ? "exists" : "empty" };
+    const r = await addObjectAuto(scenarioId, { type, nameEn, nameZh, subject }, { force });
+    if (r.ok) {
+      revalidatePath(`/scene/${scenarioId}`);
+      return { status: "added", name: r.asset.nameEn };
+    }
+    if (r.reason === "duplicate") return { status: "duplicate", matches: r.matches, resolved: r.resolved };
+    return { status: r.reason };
   } catch (e) {
     return { status: "error", message: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** Reuse an existing keyword asset in this scene (no regeneration). */
+export async function attachExistingAction(scenarioId: string, assetId: string): Promise<AddObjectResult> {
+  const a = await attachExisting(scenarioId, assetId);
+  revalidatePath(`/scene/${scenarioId}`);
+  return a ? { status: "added", name: a.nameEn } : { status: "error", message: "找不到該物件" };
 }
 
 export async function saveSettingsAction(formData: FormData) {

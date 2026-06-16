@@ -5,7 +5,7 @@ import { buildObjectPrompt } from "@/lib/openai";
 import { toMB } from "@/lib/meshinfo";
 import type { Asset } from "@/lib/db/schema";
 
-const { asset, scenario } = schema;
+const { asset, scenario, sceneAsset } = schema;
 
 /**
  * Public asset catalog feed (JSON) for downstream platforms.
@@ -43,6 +43,13 @@ export async function GET(req: Request) {
   for (const a of assets) {
     if (!a.scenarioId) continue;
     (byScene.get(a.scenarioId) ?? byScene.set(a.scenarioId, []).get(a.scenarioId)!).push(a);
+  }
+
+  // assets reused across scenes (scene_asset membership) → include in each scene
+  const assetById = new Map(assets.map((a) => [a.id, a]));
+  const memByScene = new Map<string, string[]>();
+  for (const m of await db.select().from(sceneAsset)) {
+    (memByScene.get(m.scenarioId) ?? memByScene.set(m.scenarioId, []).get(m.scenarioId)!).push(m.assetId);
   }
 
   const toObject = (a: Asset) => ({
@@ -87,7 +94,12 @@ export async function GET(req: Request) {
   let scenesOut = scenarios
     .filter((s) => !sceneTag || s.tagKey === sceneTag)
     .map((s) => {
-      const items = byScene.get(s.id) ?? [];
+      const items = [...(byScene.get(s.id) ?? [])];
+      const have = new Set(items.map((a) => a.id));
+      for (const aid of memByScene.get(s.id) ?? []) {
+        const a = assetById.get(aid);
+        if (a && !have.has(aid)) { items.push(a); have.add(aid); }
+      }
       return {
         id: s.id,
         en_name: s.nameEn,
