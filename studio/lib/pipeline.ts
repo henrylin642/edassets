@@ -612,7 +612,8 @@ export type KeywordMatch = {
   status: string;
   modelStatus: string;
   modelUrl: string | null;
-  originScene: string | null;
+  /** all scenes this asset belongs to (origin + reused), for the manager to see */
+  scenes: string[];
 };
 export type AddResult =
   | { ok: true; asset: Asset }
@@ -641,9 +642,25 @@ export async function findKeywordMatches(scenarioId: string, baseTag: string): P
     .from(sceneAsset)
     .where(eq(sceneAsset.scenarioId, scenarioId));
   const inScene = new Set(mem.map((m) => m.assetId));
-  return rows
-    .filter((r) => r.scenarioId !== scenarioId && !inScene.has(r.id))
-    .map(({ scenarioId: _s, ...m }) => m);
+  const candidates = rows.filter((r) => r.scenarioId !== scenarioId && !inScene.has(r.id));
+
+  // collect every scene each candidate belongs to (origin + reused memberships)
+  const ids = candidates.map((c) => c.id);
+  const memScenes = ids.length
+    ? await db
+        .select({ assetId: sceneAsset.assetId, name: scenario.nameEn })
+        .from(sceneAsset)
+        .innerJoin(scenario, eq(scenario.id, sceneAsset.scenarioId))
+        .where(inArray(sceneAsset.assetId, ids))
+    : [];
+  const sceneMap = new Map<string, Set<string>>();
+  for (const c of candidates) sceneMap.set(c.id, new Set(c.originScene ? [c.originScene] : []));
+  for (const m of memScenes) if (m.name) sceneMap.get(m.assetId)?.add(m.name);
+
+  return candidates.map(({ scenarioId: _s, originScene: _o, ...m }) => ({
+    ...m,
+    scenes: [...(sceneMap.get(m.id) ?? [])],
+  }));
 }
 
 /** Add an existing asset to a scene (reuse across scenes; no regeneration). */

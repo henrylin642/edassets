@@ -217,9 +217,8 @@ export function AddObjectForm({ scenarioId, type, label }: { scenarioId: string;
                     )}
                   </div>
                   <div className="text-[11px] font-medium">{m.nameEn} <span className="text-gray-400">{m.nameZh}</span></div>
-                  <div className="text-[10px] text-gray-400">
-                    {m.modelStatus === "done" ? "✓ 有 3D" : "無 3D"}{m.originScene ? ` · 來自 ${m.originScene}` : ""}
-                  </div>
+                  <div className="text-[10px] text-gray-400">{m.modelStatus === "done" ? "✓ 有 3D" : "無 3D"}</div>
+                  <div className="text-[10px] text-gray-500">出現在：{m.scenes.length ? m.scenes.join("、") : "—"}</div>
                   <button disabled={pending}
                     onClick={() => start(async () => handle(await attachExistingAction(scenarioId, m.id)))}
                     className="w-full rounded bg-green-600 px-1 py-1 text-[11px] font-medium text-white disabled:opacity-50">
