@@ -16,14 +16,17 @@ const { asset, scenario, sceneAsset } = schema;
 export default async function ScenePage({ params }: { params: Promise<{ id: string }> }) {
   ensureWorker();
   const { id } = await params;
-  const sc = (await db.select().from(scenario).where(eq(scenario.id, id)))[0];
+  // Independent reads in parallel.
+  const [scRows, config, direct, memberRows] = await Promise.all([
+    db.select().from(scenario).where(eq(scenario.id, id)),
+    getConfig(),
+    db.select().from(asset).where(eq(asset.scenarioId, id)).orderBy(asc(asset.nameEn)),
+    db.select({ assetId: sceneAsset.assetId }).from(sceneAsset).where(eq(sceneAsset.scenarioId, id)),
+  ]);
+  const sc = scRows[0];
   if (!sc) notFound();
 
-  const config = await getConfig();
-  const direct = await db.select().from(asset).where(eq(asset.scenarioId, id)).orderBy(asc(asset.nameEn));
-  const memberIds = (
-    await db.select({ assetId: sceneAsset.assetId }).from(sceneAsset).where(eq(sceneAsset.scenarioId, id))
-  ).map((r) => r.assetId);
+  const memberIds = memberRows.map((r) => r.assetId);
   const members = memberIds.length ? await db.select().from(asset).where(inArray(asset.id, memberIds)) : [];
   const seenIds = new Set(direct.map((a) => a.id));
   const assets = [...direct, ...members.filter((m) => !seenIds.has(m.id))].sort((a, b) => a.nameEn.localeCompare(b.nameEn));

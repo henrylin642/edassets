@@ -10,38 +10,26 @@ const { asset, scenario } = schema;
 
 async function getData() {
   ensureWorker();
-  const counts = await db
-    .select({ status: asset.status, n: sql<number>`count(*)::int` })
-    .from(asset)
-    .groupBy(asset.status);
+  // Run all independent queries in parallel (one round-trip instead of nine).
+  const [counts, scenarios, perScene, review, imgQueue, modelQueue, conceptQueue, b3rows, svrows] = await Promise.all([
+    db.select({ status: asset.status, n: sql<number>`count(*)::int` }).from(asset).groupBy(asset.status),
+    db.select().from(scenario).orderBy(desc(scenario.createdAt)),
+    db
+      .select({ scenarioId: asset.scenarioId, n: sql<number>`count(*)::int`, up: sql<number>`count(*) filter (where ${asset.status}='uploaded')::int` })
+      .from(asset)
+      .groupBy(asset.scenarioId),
+    db.select().from(asset).where(eq(asset.status, "review")).orderBy(desc(asset.updatedAt)),
+    db.select({ nameEn: asset.nameEn, status: asset.status }).from(asset).where(inArray(asset.status, ["queued", "generating"])).orderBy(asset.updatedAt),
+    db.select({ nameEn: asset.nameEn, modelStatus: asset.modelStatus }).from(asset).where(inArray(asset.modelStatus, ["requested", "generating"])).orderBy(asset.updatedAt),
+    db.select({ nameEn: scenario.nameEn }).from(scenario).where(inArray(scenario.conceptStatus, ["requested", "generating"])),
+    db.select({ n: sql<number>`count(*)::int` }).from(asset).where(and(eq(asset.status, "uploaded"), eq(asset.modelStatus, "none"))),
+    db.select({ n: sql<number>`count(*)::int` }).from(asset).where(inArray(asset.sideViewStatus, ["requested", "generating"])),
+  ]);
   const byStatus = Object.fromEntries(counts.map((c) => [c.status, c.n])) as Record<string, number>;
-
-  const scenarios = await db.select().from(scenario).orderBy(desc(scenario.createdAt));
-  const perScene = await db
-    .select({ scenarioId: asset.scenarioId, n: sql<number>`count(*)::int`, up: sql<number>`count(*) filter (where ${asset.status}='uploaded')::int` })
-    .from(asset)
-    .groupBy(asset.scenarioId);
-  const review = await db.select().from(asset).where(eq(asset.status, "review")).orderBy(desc(asset.updatedAt));
-
-  const imgQueue = await db
-    .select({ nameEn: asset.nameEn, status: asset.status })
-    .from(asset).where(inArray(asset.status, ["queued", "generating"])).orderBy(asset.updatedAt);
-  const modelQueue = await db
-    .select({ nameEn: asset.nameEn, modelStatus: asset.modelStatus })
-    .from(asset).where(inArray(asset.modelStatus, ["requested", "generating"])).orderBy(asset.updatedAt);
-  const conceptQueue = await db
-    .select({ nameEn: scenario.nameEn })
-    .from(scenario).where(inArray(scenario.conceptStatus, ["requested", "generating"]));
-  const [b3] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(asset).where(and(eq(asset.status, "uploaded"), eq(asset.modelStatus, "none")));
-  const [sv] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(asset).where(inArray(asset.sideViewStatus, ["requested", "generating"]));
-
+  const sv = svrows[0];
   const busy = imgQueue.length + modelQueue.length + conceptQueue.length + (sv?.n ?? 0) > 0;
 
-  return { byStatus, scenarios, perScene, review, busy, imgQueue, modelQueue, conceptQueue, batch3dCount: b3?.n ?? 0 };
+  return { byStatus, scenarios, perScene, review, busy, imgQueue, modelQueue, conceptQueue, batch3dCount: b3rows[0]?.n ?? 0 };
 }
 
 function StatPill({ label, n, color }: { label: string; n: number; color: string }) {
