@@ -328,10 +328,14 @@ export async function generateLayoutConceptB64(
   config: StudioConfig,
 ): Promise<Buffer> {
   const layout = describeLayout(objects);
+  const w = config.arLeft + config.arRight;
+  const d = config.arFront + config.arBack;
   const prompt =
-    `Wide-angle establishing shot of a ${venue}, viewed from the learner's position looking toward the center. ` +
+    `Wide-angle establishing shot of a ${venue}. CAMERA: placed at the learner's standing point about ${config.arFront} meters ` +
+    `directly in FRONT of the coach, at eye level (~1.5 m), looking straight toward the coach at the centre; frame the WHOLE ` +
+    `space (about ${w} m wide and ${d} m deep) so every prop is visible, nothing cropped. ` +
     `The main character (the person in the reference image) is a friendly English coach in staff uniform, standing at the ` +
-    `center facing the viewer, fully visible head to toe, not cropped. Arrange the venue props to match this layout — ` +
+    `centre facing the viewer, fully visible head to toe. Arrange the venue props to match this layout (relative to the coach) — ` +
     `${layout} Keep the area right in front of him clear and walkable. ${config.sceneStylePreset}. Warm and inviting, no readable text.`;
   const c = client();
   try {
@@ -362,10 +366,13 @@ export async function generateTopViewB64(
   ref?: Buffer,
 ): Promise<Buffer> {
   const layout = describeLayout(objects);
+  const w = config.arLeft + config.arRight;
+  const d = config.arFront + config.arBack;
   const prompt =
-    `Top-down BIRD'S-EYE aerial view of a ${venue}, camera positioned directly overhead looking straight down ` +
-    `(orthographic floor-plan style). Show the whole venue and all its props laid out on the ground matching this ` +
-    `layout — ${layout} The friendly coach (central character) stands at the centre, seen from above. ` +
+    `Top-down BIRD'S-EYE view of a ${venue}, camera directly overhead looking straight DOWN (orthographic floor-plan style). ` +
+    `Orient it so the FRONT (where the learner stands) is at the BOTTOM edge and the back at the TOP; the coach is a small ` +
+    `figure at the EXACT centre, seen from above. The square area (~${w} m wide × ${d} m deep) fills the frame; show all props ` +
+    `laid out on the ground matching this layout (relative to the coach) — ${layout} ` +
     `${config.sceneStylePreset}. Clear even lighting, everything visible, no readable text.`;
   const c = client();
   // Prefer the existing concept art as a style/content reference for consistency.

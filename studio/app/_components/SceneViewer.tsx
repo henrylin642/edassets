@@ -64,6 +64,7 @@ export function SceneViewer({
     apply: (patch: Partial<Sel>) => void;
     collect: () => SaveItem[];
     addObject: (o: { id: string; name: string; modelUrl?: string | null }) => void;
+    setView: (v: "user" | "top" | "free") => void;
   } | null>(null);
 
   useEffect(() => {
@@ -280,6 +281,25 @@ export function SceneViewer({
         select(holder);
         setDirty(true);
       },
+      setView: (v) => {
+        if (v === "user") {
+          // learner's standing point: +Z front, eye level, looking at Tom (origin)
+          camera.up.set(0, 1, 0);
+          camera.position.set(0, 1.6, front + 0.5);
+          orbit.target.set(0, 1.0, 0);
+        } else if (v === "top") {
+          // straight overhead; +Z (front) toward bottom of screen to match the layout map
+          camera.up.set(0, 0, -1);
+          camera.position.set(cx, Math.max(w, d) * 1.4, cz);
+          orbit.target.set(cx, 0, cz);
+        } else {
+          camera.up.set(0, 1, 0);
+          camera.position.set(right - left, 4.5, front + 3.5);
+          orbit.target.set(0, 0.8, 0);
+        }
+        camera.updateProjectionMatrix();
+        orbit.update();
+      },
     };
     control.enabled = false;
     gizmo.visible = false;
@@ -356,6 +376,11 @@ export function SceneViewer({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex overflow-hidden rounded border border-gray-300 text-xs">
+          <button onClick={() => api.current?.setView("user")} className="px-2 py-1 text-gray-600 hover:bg-gray-100" title="相機移到使用者站位 (+Z 前 6m) 看向 Tom — 與佈局一致">👁 使用者視角</button>
+          <button onClick={() => api.current?.setView("top")} className="border-l border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100" title="正上方俯視 — 與俯視佈局圖一致">⬇ 俯視</button>
+          <button onClick={() => api.current?.setView("free")} className="border-l border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">🔄 自由</button>
+        </div>
         <button onClick={() => setEdit((v) => !v)}
           className={`rounded px-3 py-1.5 text-xs font-medium ${edit ? "bg-amber-600 text-white" : "border border-gray-400 text-gray-600"}`}>
           {edit ? "✓ 編輯中（點物件選取）" : "✎ 編輯佈局"}
