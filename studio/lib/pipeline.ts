@@ -17,8 +17,7 @@ import { and, eq, sql, inArray, or, arrayContains } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
-import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements, generateLayoutConceptB64, generateTopViewB64 } from "./openai";
-import type { PlannedObject } from "./openai";
+import { buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements, generateLayoutConceptB64, generateTopViewB64, draftFromScript, extractSceneObjectsFromConcept } from "./openai";
 import { uploadImage } from "./lig";
 import {
   imageToModel,
@@ -48,18 +47,27 @@ export interface CreateSceneResult {
   skipped: string[];
 }
 
-export async function createScene(venue: string): Promise<CreateSceneResult> {
+/**
+ * New flow: free-text 文案 → draft (venue/title/concept prompt + keyword objects)
+ * → create scenario, enqueue concept image. Scene objects are extracted LATER
+ * from the concept image via extractSceneObjects().
+ */
+export async function createScene(script: string): Promise<CreateSceneResult> {
   const config = await getConfig();
-  const plan = await generateScenePlan(venue, config);
+  const draft = await draftFromScript(script, config);
+  const venue = (draft.venue || draft.name_en || script).trim().slice(0, 80);
+  const nameEn = draft.name_en || venue;
 
-  const scTag = toTag(venue);
+  const scTag = toTag(nameEn);
   const [inserted] = await db
     .insert(scenario)
     .values({
-      nameEn: plan.name_en || venue,
-      nameZh: plan.name_zh,
+      nameEn,
+      nameZh: draft.name_zh,
       venueCategory: venue,
-      conceptPrompt: plan.concept_prompt,
+      script,
+      conceptPrompt: draft.concept_prompt,
+      conceptStatus: "requested", // 文案 → 概念圖：background worker generates it
       tagKey: scTag,
       source: "ai",
     })
@@ -69,40 +77,63 @@ export async function createScene(venue: string): Promise<CreateSceneResult> {
     inserted?.id ??
     (await db.select({ id: scenario.id }).from(scenario).where(eq(scenario.tagKey, scTag)))[0].id;
 
-  const sceneObjects: string[] = [];
+  // keyword objects come from the script now; scene objects come from the concept image later
   const keywordObjects: string[] = [];
   const skipped: string[] = [];
+  for (const o of draft.keyword_objects) {
+    if (!o.en?.trim()) continue;
+    const [row] = await db
+      .insert(asset)
+      .values({
+        scenarioId,
+        type: "keyword",
+        nameEn: o.en.trim(),
+        nameZh: o.zh,
+        imagePrompt: o.subject,
+        tagKey: toTag(o.en),
+        tags: buildTags(o.en, o.zh),
+        status: "pending",
+      })
+      .onConflictDoNothing({ target: [asset.type, asset.tagKey] })
+      .returning({ id: asset.id });
+    (row ? keywordObjects : skipped).push(o.en.trim());
+  }
 
-  const insertObjects = async (
-    items: { en: string; zh: string; subject: string; placement?: PlannedObject["placement"] }[],
-    type: "scene_object" | "keyword",
-    bucket: string[],
-  ) => {
-    for (const o of items) {
-      if (!o.en?.trim()) continue;
-      const [row] = await db
-        .insert(asset)
-        .values({
-          scenarioId,
-          type,
-          nameEn: o.en.trim(),
-          nameZh: o.zh,
-          imagePrompt: o.subject,
-          tagKey: toTag(o.en),
-          tags: buildTags(o.en, o.zh),
-          placement: type === "scene_object" ? o.placement ?? null : null,
-          status: "pending",
-        })
-        .onConflictDoNothing({ target: [asset.type, asset.tagKey] })
-        .returning({ id: asset.id });
-      (row ? bucket : skipped).push(o.en.trim());
-    }
-  };
+  return { scenarioId, nameEn, sceneObjects: [], keywordObjects, skipped };
+}
 
-  await insertObjects(plan.scene_objects, "scene_object", sceneObjects);
-  await insertObjects(plan.keyword_objects, "keyword", keywordObjects);
+/**
+ * Vision step: read the scene's concept image → the props actually drawn → insert
+ * them as scene_objects with placement (positions estimated from the image).
+ */
+export async function extractSceneObjects(scenarioId: string): Promise<number> {
+  const config = await getConfig();
+  const sc = (await db.select().from(scenario).where(eq(scenario.id, scenarioId)))[0];
+  if (!sc) throw new Error("scenario not found");
+  if (!sc.conceptImageUrl) throw new Error("尚無概念圖，請先生成概念圖再萃取情境物件");
 
-  return { scenarioId, nameEn: plan.name_en || venue, sceneObjects, keywordObjects, skipped };
+  const objs = await extractSceneObjectsFromConcept(sc.conceptImageUrl, sc.script ?? "", config);
+  let n = 0;
+  for (const o of objs) {
+    if (!o.en?.trim()) continue;
+    const [row] = await db
+      .insert(asset)
+      .values({
+        scenarioId,
+        type: "scene_object",
+        nameEn: o.en.trim(),
+        nameZh: o.zh || null,
+        imagePrompt: o.subject,
+        tagKey: toTag(o.en),
+        tags: buildTags(o.en, o.zh),
+        placement: o.placement ?? null,
+        status: "pending",
+      })
+      .onConflictDoNothing({ target: [asset.type, asset.tagKey] })
+      .returning({ id: asset.id });
+    if (row) n++;
+  }
+  return n;
 }
 
 /** Re-plan AR placement for an existing scene's objects (no image/model regen). */

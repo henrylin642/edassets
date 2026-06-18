@@ -65,6 +65,8 @@ export const scenario = pgTable(
     description: text("description"),
     /** venue category, e.g. convenience store / coffee shop / classroom */
     venueCategory: text("venue_category"),
+    /** free-text 文案: the situation/script the manager wrote (drives concept + objects) */
+    script: text("script"),
     /** LLM-written concept scene description (Tom-centered) */
     conceptPrompt: text("concept_prompt"),
     /** concept image on LiG */

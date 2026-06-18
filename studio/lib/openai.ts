@@ -141,6 +141,89 @@ function clampPlacement(p: Placement | undefined, config: StudioConfig): Placeme
   };
 }
 
+// ── new flow: 文案 → concept → (vision) scene objects ────────────────────────
+export interface ScriptDraft {
+  venue: string;
+  name_en: string;
+  name_zh: string;
+  concept_prompt: string;
+  keyword_objects: PlannedObject[];
+}
+
+/** Free-text situation (文案) → venue/title/concept prompt + practice keyword objects. */
+export async function draftFromScript(script: string, config: StudioConfig): Promise<ScriptDraft> {
+  const system = `You turn a teacher's free-text situation (文案, often Traditional Chinese) into a plan for an AR English-learning scene, as JSON.
+Infer from the script:
+- "venue": a short English venue label (e.g. convenience store, zoo, coffee shop).
+- "name_en","name_zh": a short scene title.
+- "concept_prompt": a vivid description IN TRADITIONAL CHINESE for a wide-angle concept illustration centered on "Tom"(湯姆), a friendly older English coach acting as the venue's staff, FACING the learner. Describe 湯姆、空間、以及這個情境的關鍵道具，讓整個情境被傳達。No readable text/signage.
+- "keyword_objects": the concrete vocabulary items the learner would name/practice in THIS situation (from its intent/dialogue). Each {en, zh, subject} where subject is a clean visual noun phrase (no brand/text/style words).
+Return ONLY JSON: {"venue","name_en","name_zh","concept_prompt","keyword_objects":[{"en","zh","subject"}]}`;
+  const res = await client().chat.completions.create({
+    model: config.namingModel,
+    temperature: 0.4,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: `文案 / situation:\n${script}\n\nPropose about ${config.objectsPerCategory} keyword_objects.` },
+    ],
+  });
+  const d = JSON.parse(res.choices[0]?.message?.content ?? "{}") as ScriptDraft;
+  d.keyword_objects ??= [];
+  return d;
+}
+
+/** Vision: read the concept image → the props actually drawn, with floor positions → placement. */
+export async function extractSceneObjectsFromConcept(
+  conceptUrl: string,
+  script: string,
+  config: StudioConfig,
+): Promise<PlannedObject[]> {
+  const system = `You are shown a CONCEPT IMAGE of an AR English scene plus its situation script. List the physical PROPS / furniture that FURNISH the venue (immersion objects) actually visible in the image.
+EXCLUDE: the coach/people, live animals, background plants, walls, floor, sky, ceiling.
+For EACH prop give:
+- "en","zh","subject": a clean visual noun phrase to redraw this single item alone (no brand/logo/text/style words).
+- "sx": horizontal screen position 0=left edge .. 1=right edge.
+- "sy": vertical position of where the prop MEETS THE FLOOR, 0=top/far .. 1=bottom/near the viewer.
+- "est_height_m": estimated real-world height in meters.
+Include only solid furnishing props relevant to the venue (max ~12), most prominent first. Return ONLY JSON: {"objects":[{"en","zh","subject","sx","sy","est_height_m"}]}`;
+  const res = await client().chat.completions.create({
+    model: config.namingModel,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `Situation:\n${script || "(none)"}` },
+          { type: "image_url", image_url: { url: conceptUrl } },
+        ],
+      },
+    ],
+  });
+  const parsed = JSON.parse(res.choices[0]?.message?.content ?? "{}") as {
+    objects?: { en?: string; zh?: string; subject?: string; sx?: number; sy?: number; est_height_m?: number }[];
+  };
+  return (parsed.objects ?? [])
+    .filter((o) => o.en?.trim())
+    .map((o) => {
+      const sx = Math.max(0, Math.min(1, Number(o.sx ?? 0.5)));
+      const sy = Math.max(0, Math.min(1, Number(o.sy ?? 0.5)));
+      // screen → floor: x left→right, sy bottom(near,+z) .. top(far,−z)
+      const placement = clampPlacement(
+        {
+          x: -config.arLeft + sx * (config.arLeft + config.arRight),
+          z: -config.arBack + sy * (config.arFront + config.arBack),
+          rotationY: 0,
+          sizeM: Number(o.est_height_m ?? 1),
+        },
+        config,
+      );
+      return { en: o.en!.trim(), zh: o.zh ?? "", subject: o.subject ?? `a ${o.en}`, placement };
+    });
+}
+
 // ── translate a Chinese object name → English name + visual subject ──────────
 export async function translateObject(
   zh: string,

@@ -1,0 +1,1 @@
+ALTER TABLE "scenario" ADD COLUMN IF NOT EXISTS "script" text;

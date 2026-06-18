@@ -20,14 +20,13 @@ import {
   clearSideViewAction,
   deleteSceneAction,
   replanLayoutAction,
+  extractObjectsAction,
   generateLayoutConceptAction,
   generateTopViewAction,
   attachExistingAction,
 } from "../actions";
 import type { AddObjectResult } from "../actions";
 import type { KeywordMatch } from "@/lib/pipeline";
-
-const VENUES = ["convenience store", "coffee shop", "classroom", "infirmary", "department store", "train station", "airport"];
 
 /**
  * While background work is queued: poll a worker tick (drives generation on
@@ -56,20 +55,20 @@ export function AutoRefresh({ active, ms = 4000 }: { active: boolean; ms?: numbe
 export function CreateSceneForm() {
   const [pending, start] = useTransition();
   return (
-    <form action={(fd) => start(() => createSceneAction(fd))} className="flex flex-wrap gap-2">
-      <input
-        name="venue"
-        list="venues"
-        placeholder="場域，例如 coffee shop / 火車站"
-        className="min-w-64 flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+    <form action={(fd) => start(() => createSceneAction(fd))} className="space-y-2">
+      <textarea
+        name="script"
+        rows={3}
+        placeholder="用文案描述情境，例如：學生走進便利商店，跟店員 Tom 點一杯咖啡和一個飯糰，學會用英文詢問價格與付款。（可只寫場域名稱）"
+        className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
         required
       />
-      <datalist id="venues">
-        {VENUES.map((v) => <option key={v} value={v} />)}
-      </datalist>
-      <button disabled={pending} className="rounded bg-pink-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-        {pending ? "生成場景計畫中…" : "+ 新增場域"}
-      </button>
+      <div className="flex items-center gap-2">
+        <button disabled={pending} className="rounded bg-pink-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          {pending ? "建立中…（AI 解析文案）" : "+ 由文案建立場景"}
+        </button>
+        <span className="text-xs text-gray-400">建立後自動生概念圖 → 再到場景頁「從概念圖萃取情境物件」</span>
+      </div>
     </form>
   );
 }
@@ -97,6 +96,24 @@ export function Batch3dButton({ scenarioId, count }: { scenarioId?: string; coun
     >
       {pending ? "排入中…" : `🧊 批量製作 3D（${count}）`}
     </button>
+  );
+}
+
+export function ExtractObjectsButton({ scenarioId, hasConcept, count }: { scenarioId: string; hasConcept: boolean; count: number }) {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button
+        disabled={pending || !hasConcept}
+        title={hasConcept ? "用 AI 視覺讀概念圖，萃取畫面中的情境物件並估算佈局" : "請先生成概念圖"}
+        onClick={() => start(async () => { const r = await extractObjectsAction(scenarioId); setMsg(`新增 ${r.added} 個情境物件`); })}
+        className="rounded bg-teal-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+      >
+        {pending ? "🔍 讀概念圖萃取中…" : count > 0 ? "↻ 再次從概念圖萃取" : "🔍 從概念圖萃取情境物件"}
+      </button>
+      {msg && <span className="text-xs text-teal-700">{msg}</span>}
+    </span>
   );
 }
 

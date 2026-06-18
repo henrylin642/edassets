@@ -19,6 +19,7 @@ import {
   deleteAsset,
   deleteScene,
   replanLayout,
+  extractSceneObjects,
   generateLayoutConcept,
   generateTopView,
   savePlacements,
@@ -30,9 +31,10 @@ import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
 
 export async function createSceneAction(formData: FormData) {
-  const venue = String(formData.get("venue") ?? "").trim();
-  if (!venue) return;
-  const r = await createScene(venue);
+  const script = String(formData.get("script") ?? formData.get("venue") ?? "").trim();
+  if (!script) return;
+  const r = await createScene(script);
+  ensureWorker(); // 文案 → 概念圖 (background)
   revalidatePath("/");
   revalidatePath(`/scene/${r.scenarioId}`);
 }
@@ -137,6 +139,13 @@ export async function deleteSceneAction(scenarioId: string) {
 export async function replanLayoutAction(scenarioId: string) {
   await replanLayout(scenarioId);
   revalidatePath(`/scene/${scenarioId}`);
+}
+
+/** Vision: extract scene objects from the concept image (new flow step 3). */
+export async function extractObjectsAction(scenarioId: string) {
+  const n = await extractSceneObjects(scenarioId);
+  revalidatePath(`/scene/${scenarioId}`);
+  return { added: n };
 }
 
 /** Generate a layout-faithful concept image from placement coordinates (synchronous). */
