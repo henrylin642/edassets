@@ -20,6 +20,7 @@ import {
   deleteScene,
   replanLayout,
   generateLayoutConcept,
+  generateTopView,
   savePlacements,
   attachExisting,
 } from "@/lib/pipeline";
@@ -141,6 +142,12 @@ export async function replanLayoutAction(scenarioId: string) {
 /** Generate a layout-faithful concept image from placement coordinates (synchronous). */
 export async function generateLayoutConceptAction(scenarioId: string) {
   await generateLayoutConcept(scenarioId);
+  revalidatePath(`/scene/${scenarioId}`);
+}
+
+/** Generate a top-down (bird's-eye) reference view from placement (synchronous). */
+export async function generateTopViewAction(scenarioId: string) {
+  await generateTopView(scenarioId);
   revalidatePath(`/scene/${scenarioId}`);
 }
 

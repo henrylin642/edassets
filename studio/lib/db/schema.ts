@@ -75,6 +75,9 @@ export const scenario = pgTable(
     /** layout-faithful concept image (rendered from scene_object placement) */
     layoutConceptUrl: text("layout_concept_url"),
     layoutConceptLigId: text("layout_concept_lig_id"),
+    /** top-down (bird's-eye) reference view rendered from the placement */
+    topViewUrl: text("top_view_url"),
+    topViewLigId: text("top_view_lig_id"),
     concreteScene: text("concrete_scene"),
     arcType: arcType("arc_type"),
     source: scenarioSource("source").notNull().default("ai"),

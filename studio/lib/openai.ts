@@ -271,6 +271,38 @@ export async function generateLayoutConceptB64(
   return Buffer.from(b64, "base64");
 }
 
+/** Generate a top-down (bird's-eye) reference view of the scene from the placement. */
+export async function generateTopViewB64(
+  venue: string,
+  objects: { name: string; x: number; z: number; sizeM: number }[],
+  config: StudioConfig,
+  ref?: Buffer,
+): Promise<Buffer> {
+  const layout = describeLayout(objects);
+  const prompt =
+    `Top-down BIRD'S-EYE aerial view of a ${venue}, camera positioned directly overhead looking straight down ` +
+    `(orthographic floor-plan style). Show the whole venue and all its props laid out on the ground matching this ` +
+    `layout — ${layout} The friendly coach (central character) stands at the centre, seen from above. ` +
+    `${config.sceneStylePreset}. Clear even lighting, everything visible, no readable text.`;
+  const c = client();
+  // Prefer the existing concept art as a style/content reference for consistency.
+  const refBuf = ref ?? (await readFile(tomRefPath()).catch(() => null));
+  if (refBuf) {
+    try {
+      const file = await OpenAI.toFile(refBuf, "ref.png", { type: "image/png" });
+      const r = await c.images.edit({ model: config.gptImageModel, image: file, prompt, size: config.conceptSize });
+      const b64 = r.data?.[0]?.b64_json;
+      if (b64) return Buffer.from(b64, "base64");
+    } catch {
+      // fall through to plain generate
+    }
+  }
+  const r = await c.images.generate({ model: config.gptImageModel, prompt, size: config.conceptSize, quality: config.imageQuality });
+  const b64 = r.data?.[0]?.b64_json;
+  if (!b64) throw new Error("gpt-image returned no top view");
+  return Buffer.from(b64, "base64");
+}
+
 // ── gpt-image-1: concept art with Tom reference ──────────────────────────────
 /** Resolve the Tom reference image path (env override or studio/assets/tom.png). */
 export function tomRefPath(): string {

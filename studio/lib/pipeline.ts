@@ -17,7 +17,7 @@ import { and, eq, sql, inArray, or, arrayContains } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
-import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements, generateLayoutConceptB64 } from "./openai";
+import { generateScenePlan, buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements, generateLayoutConceptB64, generateTopViewB64 } from "./openai";
 import type { PlannedObject } from "./openai";
 import { uploadImage } from "./lig";
 import {
@@ -162,6 +162,40 @@ export async function generateLayoutConcept(scenarioId: string): Promise<string>
   await db
     .update(scenario)
     .set({ layoutConceptUrl: ligAsset.url, layoutConceptLigId: ligAsset.id, updatedAt: new Date() })
+    .where(eq(scenario.id, scenarioId));
+  return ligAsset.url;
+}
+
+/** Generate a top-down (bird's-eye) reference view from the placement; uses concept art as reference. */
+export async function generateTopView(scenarioId: string): Promise<string> {
+  const config = await getConfig();
+  const sc = (await db.select().from(scenario).where(eq(scenario.id, scenarioId)))[0];
+  if (!sc) throw new Error("scenario not found");
+  const objs = await db
+    .select()
+    .from(asset)
+    .where(and(eq(asset.scenarioId, scenarioId), eq(asset.type, "scene_object")));
+  const placed = objs
+    .filter((o) => o.placement)
+    .map((o) => ({ name: o.nameEn, x: o.placement!.x, z: o.placement!.z, sizeM: o.placement!.sizeM }));
+  if (placed.length === 0) throw new Error("此場景尚無佈局座標，請先按「重算佈局」");
+
+  // reference existing concept art (layout concept first, else the Tom concept) for consistency
+  let ref: Buffer | undefined;
+  const refUrl = sc.layoutConceptUrl ?? sc.conceptImageUrl;
+  if (refUrl) {
+    try {
+      ref = Buffer.from(await (await fetch(refUrl)).arrayBuffer());
+    } catch {
+      ref = undefined;
+    }
+  }
+
+  const buf = await generateTopViewB64(sc.venueCategory ?? sc.nameEn, placed, config, ref);
+  const ligAsset = await uploadImage(buf, `topview-${sc.tagKey}`, "png", [sc.tagKey, "topview", "layout"]);
+  await db
+    .update(scenario)
+    .set({ topViewUrl: ligAsset.url, topViewLigId: ligAsset.id, updatedAt: new Date() })
     .where(eq(scenario.id, scenarioId));
   return ligAsset.url;
 }

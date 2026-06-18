@@ -80,6 +80,7 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
         bounds={{ left: config.arLeft, right: config.arRight, front: config.arFront, back: config.arBack }}
         scenarioId={sc.id}
         conceptUrl={sc.layoutConceptUrl}
+        topViewUrl={sc.topViewUrl}
         objects={sceneObjects
           .filter((a) => a.placement)
           .map((a) => ({ name: a.nameEn, ...a.placement! }))}

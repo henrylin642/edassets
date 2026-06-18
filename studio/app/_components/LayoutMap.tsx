@@ -3,7 +3,7 @@
  * World: meters, Unity left-handed. Tom at origin (0,0) facing +Z (the user).
  * Drawn as a floor plan: +X to the right, +Z (front/user) toward the BOTTOM.
  */
-import { LayoutConceptButton } from "./Controls";
+import { LayoutConceptButton, TopViewButton } from "./Controls";
 
 type Obj = { name: string; x: number; z: number; rotationY: number; sizeM: number };
 
@@ -12,11 +12,13 @@ export function LayoutMap({
   objects,
   scenarioId,
   conceptUrl,
+  topViewUrl,
 }: {
   bounds: { left: number; right: number; front: number; back: number };
   objects: Obj[];
   scenarioId: string;
   conceptUrl?: string | null;
+  topViewUrl?: string | null;
 }) {
   if (objects.length === 0) return null;
 
@@ -37,7 +39,10 @@ export function LayoutMap({
         <h2 className="text-lg font-semibold">
           擺位佈局 <span className="text-sm font-normal text-gray-400">— 俯視圖（公尺，Tom 在原點面向使用者）（{objects.length}）</span>
         </h2>
-        <LayoutConceptButton scenarioId={scenarioId} has={!!conceptUrl} count={objects.length} />
+        <div className="flex flex-wrap gap-2">
+          <LayoutConceptButton scenarioId={scenarioId} has={!!conceptUrl} count={objects.length} />
+          <TopViewButton scenarioId={scenarioId} has={!!topViewUrl} count={objects.length} />
+        </div>
       </div>
       <div className="flex flex-col gap-3 lg:flex-row">
       <div className="overflow-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -78,6 +83,13 @@ export function LayoutMap({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={conceptUrl} alt="layout concept" className="w-full rounded-lg border border-gray-200 object-contain" />
             <div className="text-[11px] text-gray-400">依佈局生成的概念圖（使用者視角，gpt-image 近似擺位，非公分級精準）</div>
+          </div>
+        )}
+        {topViewUrl && (
+          <div className="flex-1 space-y-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={topViewUrl} alt="top view" className="w-full rounded-lg border border-gray-200 object-contain" />
+            <div className="text-[11px] text-gray-400">依佈局生成的上視圖（俯瞰參考，gpt-image 近似）</div>
           </div>
         )}
       </div>

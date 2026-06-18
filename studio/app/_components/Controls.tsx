@@ -21,6 +21,7 @@ import {
   deleteSceneAction,
   replanLayoutAction,
   generateLayoutConceptAction,
+  generateTopViewAction,
   attachExistingAction,
 } from "../actions";
 import type { AddObjectResult } from "../actions";
@@ -320,6 +321,18 @@ export function LayoutConceptButton({ scenarioId, has, count }: { scenarioId: st
       title="依佈局座標生成一張使用者視角的概念圖（約 30s）"
       className="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
       {pending ? "🎨 依佈局生成中…（約 30s）" : has ? "↻ 重生佈局概念圖" : "🎨 依佈局生成概念圖"}
+    </button>
+  );
+}
+
+export function TopViewButton({ scenarioId, has, count }: { scenarioId: string; has: boolean; count: number }) {
+  const [pending, start] = useTransition();
+  return (
+    <button disabled={pending || count === 0}
+      onClick={() => start(async () => { await generateTopViewAction(scenarioId); })}
+      title="依佈局座標+概念圖生成一張俯瞰參考圖（約 30s）"
+      className="rounded bg-sky-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+      {pending ? "🛰 生成上視圖中…（約 30s）" : has ? "↻ 重生上視圖" : "🛰 生成上視圖"}
     </button>
   );
 }
