@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq, asc, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton, ExtractObjectsButton } from "@/app/_components/Controls";
+import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton, ExtractObjectsButton, ImportKeywordsForm } from "@/app/_components/Controls";
 import { AssetCard } from "@/app/_components/AssetCard";
 import { LayoutMap } from "@/app/_components/LayoutMap";
 import { SceneViewer } from "@/app/_components/SceneViewer";
@@ -162,6 +162,7 @@ function Section({ title, hint, items, scenarioId, type, addLabel }: {
         </div>
       )}
       <AddObjectForm scenarioId={scenarioId} type={type} label={addLabel} />
+      {type === "keyword" && <ImportKeywordsForm scenarioId={scenarioId} />}
     </section>
   );
 }

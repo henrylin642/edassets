@@ -24,6 +24,7 @@ import {
   generateLayoutConceptAction,
   generateTopViewAction,
   attachExistingAction,
+  importKeywordsAction,
 } from "../actions";
 import type { AddObjectResult } from "../actions";
 import type { KeywordMatch } from "@/lib/pipeline";
@@ -257,6 +258,48 @@ export function AddObjectForm({ scenarioId, type, label }: { scenarioId: string;
         </div>
       )}
     </div>
+  );
+}
+
+const CSV_TEMPLATE = "中文名,英文名,生圖描述\n咖啡,coffee,a paper cup of hot coffee\n飯糰,,\n御飯糰,onigiri,a triangular rice ball in wrapper\n";
+
+export function ImportKeywordsForm({ scenarioId }: { scenarioId: string }) {
+  const [pending, start] = useTransition();
+  const [res, setRes] = useState<{ created: string[]; reused: string[]; skipped: string[]; failed: string[] } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const run = (text: string) => {
+    if (!text.trim()) return;
+    start(async () => { setRes(await importKeywordsAction(scenarioId, text)); if (fileRef.current) fileRef.current.value = ""; });
+  };
+
+  return (
+    <details className="rounded-lg border border-dashed border-gray-300 p-3 text-xs">
+      <summary className="cursor-pointer font-medium text-gray-600">📥 批量匯入關鍵字（CSV）</summary>
+      <div className="mt-2 space-y-2">
+        <p className="text-gray-500">
+          欄位順序：<span className="font-mono">中文名, 英文名, 生圖描述</span>。英文名留空會自動翻譯；描述留空 AI 自動產生。第一列可放標題。
+          <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(CSV_TEMPLATE)}`} download="keywords.csv" className="ml-1 text-blue-600 hover:underline">下載範例</a>
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,text/csv"
+          disabled={pending}
+          onChange={async (e) => { const f = e.target.files?.[0]; if (f) run(await f.text()); }}
+          className="block text-xs"
+        />
+        {pending && <div className="text-teal-700">匯入中…（含自動翻譯，可能需數十秒）</div>}
+        {res && (
+          <div className="space-y-0.5 rounded bg-gray-50 p-2">
+            <div className="text-green-700">✓ 新增 {res.created.length}：{res.created.join("、") || "—"}</div>
+            <div className="text-blue-700">♻ 沿用既有 {res.reused.length}：{res.reused.join("、") || "—"}</div>
+            <div className="text-gray-500">略過（本場景已有）{res.skipped.length}：{res.skipped.join("、") || "—"}</div>
+            {res.failed.length > 0 && <div className="text-red-600">✕ 失敗 {res.failed.length}：{res.failed.join("、")}</div>}
+          </div>
+        )}
+      </div>
+    </details>
   );
 }
 

@@ -734,6 +734,48 @@ export async function attachExisting(scenarioId: string, assetId: string): Promi
   return (await getAsset(assetId)) ?? null;
 }
 
+export type BulkKeywordRow = { nameZh?: string; nameEn?: string; subject?: string };
+export type BulkResult = { created: string[]; reused: string[]; skipped: string[]; failed: string[] };
+
+/**
+ * Batch add keyword objects (e.g. from a CSV). Per row: translate if needed,
+ * reuse an existing same-keyword asset (attach to this scene), else create new;
+ * skip if it already lives in this scene.
+ */
+export async function bulkAddKeywords(scenarioId: string, rows: BulkKeywordRow[]): Promise<BulkResult> {
+  const sc = (await db.select().from(scenario).where(eq(scenario.id, scenarioId)))[0];
+  const venue = sc?.venueCategory ?? undefined;
+  const out: BulkResult = { created: [], reused: [], skipped: [], failed: [] };
+
+  for (const row of rows) {
+    const zh = row.nameZh?.trim() ?? "";
+    let en = row.nameEn?.trim() ?? "";
+    let subject = row.subject?.trim() ?? "";
+    if (!en && !zh) continue;
+    try {
+      if (!en && zh) {
+        const t = await translateObject(zh, venue);
+        en = t.en;
+        if (!subject) subject = t.subject;
+      }
+      if (!en) { out.failed.push(zh || "(空白)"); continue; }
+
+      const matches = await findKeywordMatches(scenarioId, toTag(en));
+      if (matches.length) {
+        await attachExisting(scenarioId, matches[0].id); // reuse existing across scenes
+        out.reused.push(en);
+        continue;
+      }
+      const r = await addObject(scenarioId, { type: "keyword", nameEn: en, nameZh: zh || undefined, subject });
+      if (r.ok) out.created.push(en);
+      else out.skipped.push(en); // already in this scene
+    } catch (e) {
+      out.failed.push(`${en || zh}（${e instanceof Error ? e.message : "錯誤"}）`);
+    }
+  }
+  return out;
+}
+
 /** Find the next free tag for a variant: base, base-2, base-3 … */
 async function nextVariantTag(baseTag: string): Promise<string> {
   const taken = new Set(

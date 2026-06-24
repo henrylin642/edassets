@@ -24,8 +24,9 @@ import {
   generateTopView,
   savePlacements,
   attachExisting,
+  bulkAddKeywords,
 } from "@/lib/pipeline";
-import type { KeywordMatch } from "@/lib/pipeline";
+import type { KeywordMatch, BulkResult } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
@@ -196,6 +197,44 @@ export async function addObjectAction(formData: FormData): Promise<AddObjectResu
   } catch (e) {
     return { status: "error", message: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** Split a CSV line, honoring double-quoted fields. */
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else q = false;
+      } else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ",") { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim());
+}
+
+/** Parse CSV text → rows of {nameZh, nameEn, subject}. Columns: 中文名, 英文名, 生圖描述. */
+function parseKeywordCsv(text: string): { nameZh?: string; nameEn?: string; subject?: string }[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length === 0) return [];
+  const cells = lines.map(splitCsvLine);
+  // drop a header row if the first row looks like labels
+  if (/中文|英文|名|chinese|english|name|zh|en|subject|描述/i.test(cells[0].join(","))) cells.shift();
+  return cells.map((c) => ({ nameZh: c[0] || undefined, nameEn: c[1] || undefined, subject: c[2] || undefined }));
+}
+
+/** Batch import keyword objects from CSV text (file uploaded client-side). */
+export async function importKeywordsAction(scenarioId: string, csvText: string): Promise<BulkResult> {
+  const rows = parseKeywordCsv(csvText);
+  const r = await bulkAddKeywords(scenarioId, rows);
+  revalidatePath(`/scene/${scenarioId}`);
+  return r;
 }
 
 /** Reuse an existing keyword asset in this scene (no regeneration). */
