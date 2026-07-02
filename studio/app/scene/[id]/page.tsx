@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq, asc, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton, ExtractObjectsButton, ImportKeywordsForm } from "@/app/_components/Controls";
+import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton, ExtractObjectsButton, ImportKeywordsForm, SuggestBudgetsButton } from "@/app/_components/Controls";
 import { AssetCard } from "@/app/_components/AssetCard";
 import { LayoutMap } from "@/app/_components/LayoutMap";
 import { SceneViewer } from "@/app/_components/SceneViewer";
@@ -68,6 +68,7 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
             <ConceptButton scenarioId={sc.id} has={!!sc.conceptImageUrl} status={sc.conceptStatus} />
             <ExtractObjectsButton scenarioId={sc.id} hasConcept={!!sc.conceptImageUrl} count={sceneObjects.length} />
             <ProcessNextButton count={pending} scenarioId={sc.id} />
+            <SuggestBudgetsButton scenarioId={sc.id} count={assets.length} />
             <Batch3dButton scenarioId={sc.id} count={no3d} />
             <RegenAllButton scenarioId={sc.id} />
             <ReplanLayoutButton scenarioId={sc.id} count={sceneObjects.length} />

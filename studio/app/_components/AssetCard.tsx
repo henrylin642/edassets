@@ -2,6 +2,8 @@ import type { Asset } from "@/lib/db/schema";
 import { toMB } from "@/lib/meshinfo";
 import { ReviewButtons, Make3dButton, RegenButton, PromptEditor, GenerateButton, DeleteButton, SideViewButton } from "./Controls";
 
+const TIER_ZH: Record<string, string> = { simple: "簡單", normal: "一般", complex: "複雜" };
+
 /* eslint-disable @next/next/no-img-element */
 export function AssetCard({ a }: { a: Asset }) {
   const src =
@@ -42,6 +44,14 @@ export function AssetCard({ a }: { a: Asset }) {
       {a.placement && (
         <div className="text-[10px] text-cyan-700">
           📍 x{a.placement.x} z{a.placement.z} · {a.placement.rotationY}° · {a.placement.sizeM}m
+        </div>
+      )}
+
+      {(a.recFaceLimit || a.recTextureSize) && (
+        <div className="text-[10px] text-emerald-700">
+          🎯 建議 3D：{a.recFaceLimit ? `${a.recFaceLimit.toLocaleString()} 面` : ""}
+          {a.recTextureSize ? ` · ${a.recTextureSize} 貼圖` : ""}
+          {a.model3dTier ? `（${TIER_ZH[a.model3dTier] ?? a.model3dTier}）` : ""}
         </div>
       )}
 

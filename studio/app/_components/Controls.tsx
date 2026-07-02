@@ -25,6 +25,7 @@ import {
   generateTopViewAction,
   attachExistingAction,
   importKeywordsAction,
+  suggestBudgetsAction,
 } from "../actions";
 import type { AddObjectResult } from "../actions";
 import type { KeywordMatch } from "@/lib/pipeline";
@@ -97,6 +98,24 @@ export function Batch3dButton({ scenarioId, count }: { scenarioId?: string; coun
     >
       {pending ? "排入中…" : `🧊 批量製作 3D（${count}）`}
     </button>
+  );
+}
+
+export function SuggestBudgetsButton({ scenarioId, count }: { scenarioId: string; count: number }) {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button
+        disabled={pending || count === 0}
+        title="用 AI 依每個物件的複雜度，估算建議的 3D 面數上限與貼圖大小（生 3D 時採用）"
+        onClick={() => start(async () => { const r = await suggestBudgetsAction(scenarioId); setMsg(`已估算 ${r.sized} 個`); })}
+        className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+      >
+        {pending ? "🧮 估算中…" : "🧮 估算 3D 建議 (LLM)"}
+      </button>
+      {msg && <span className="text-xs text-emerald-700">{msg}</span>}
+    </span>
   );
 }
 

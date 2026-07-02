@@ -141,6 +141,67 @@ function clampPlacement(p: Placement | undefined, config: StudioConfig): Placeme
   };
 }
 
+// ── per-object 3D budget suggestion (LLM) ───────────────────────────────────
+export interface ModelBudget {
+  faceLimit: number; // suggested Tripo face_limit
+  textureSize: number; // suggested texture px
+  tier: string; // short label: simple | normal | complex
+  reason?: string;
+}
+
+/** Allowed discrete choices — LLM picks within these; we snap anything off-menu. */
+const FACE_CHOICES = [4000, 8000, 15000, 30000];
+const TEX_CHOICES = [512, 1024, 2048];
+const snap = (v: number, choices: number[]) =>
+  choices.reduce((best, c) => (Math.abs(c - v) < Math.abs(best - v) ? c : best), choices[0]);
+
+/**
+ * Ask the LLM to size each object's 3D budget for mobile AR (many objects on screen).
+ * Keyword objects (practice focus, seen up close) lean on texture; scene props are
+ * sized by geometric complexity. Returns a map keyed by lowercased English name.
+ */
+export async function suggestModelBudgets(
+  items: { en: string; zh?: string | null; type: "scene_object" | "keyword" }[],
+  config: StudioConfig,
+): Promise<Record<string, ModelBudget>> {
+  if (items.length === 0) return {};
+  const system = `You size 3D model budgets for objects rendered in a MOBILE AR scene where up to ~100 objects may be on screen at once, so keep polygons lean.
+For EACH object choose:
+- "faceLimit": one of ${FACE_CHOICES.join(", ")} (max triangles). Pick by GEOMETRIC complexity, NOT importance:
+    • ${FACE_CHOICES[0]} — simple rounded/blocky items (bottle, can, rice ball, ball, box, gum pack).
+    • ${FACE_CHOICES[1]} — normal everyday items with some detail (snack bag, cup with lid, small appliance).
+    • ${FACE_CHOICES[2]} — detailed or structural props (shelf, freezer, cash register, coffee machine, microwave).
+    • ${FACE_CHOICES[3]} — only genuinely complex, high-detail large furniture. Use sparingly.
+- "textureSize": one of ${TEX_CHOICES.join(", ")} px. "keyword" objects are the learner's practice focus seen up close → prefer 1024. "scene_object" props are background furnishing → prefer 512 (use 1024 only if the surface has fine detail that matters).
+- "tier": one short word — "simple" | "normal" | "complex".
+Return ONLY JSON using the EXACT "en" strings given: {"items":[{"en","faceLimit","textureSize","tier"}]}`;
+  const list = items
+    .map((o) => `- ${o.en}${o.zh ? ` (${o.zh})` : ""} [${o.type}]`)
+    .join("\n");
+  const res = await client().chat.completions.create({
+    model: config.namingModel,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: `Objects:\n${list}` },
+    ],
+  });
+  const parsed = JSON.parse(res.choices[0]?.message?.content ?? "{}") as {
+    items?: { en?: string; faceLimit?: number; textureSize?: number; tier?: string }[];
+  };
+  const out: Record<string, ModelBudget> = {};
+  for (const it of parsed.items ?? []) {
+    if (!it.en) continue;
+    out[it.en.trim().toLowerCase()] = {
+      faceLimit: snap(Number(it.faceLimit ?? config.model3dFaceLimit), FACE_CHOICES),
+      textureSize: snap(Number(it.textureSize ?? config.model3dTextureSize), TEX_CHOICES),
+      tier: (it.tier ?? "normal").trim().toLowerCase(),
+    };
+  }
+  return out;
+}
+
 // ── new flow: 文案 → concept → (vision) scene objects ────────────────────────
 export interface ScriptDraft {
   venue: string;

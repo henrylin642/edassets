@@ -137,6 +137,12 @@ export const asset = pgTable(
     /** why side-view generation failed, if it did (surfaced in UI) */
     sideViewError: text("side_view_error"),
 
+    /** LLM-suggested 3D budget for this object; falls back to global config when null.
+     * Set at object creation and re-computable via the scene's "估算 3D 建議" button. */
+    recFaceLimit: integer("rec_face_limit"),
+    recTextureSize: integer("rec_texture_size"),
+    model3dTier: text("model_3d_tier"), // short LLM label, e.g. simple | normal | complex
+
     /** captured metrics */
     imageWidth: integer("image_width"),
     imageHeight: integer("image_height"),

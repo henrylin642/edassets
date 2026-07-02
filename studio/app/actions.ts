@@ -25,6 +25,7 @@ import {
   savePlacements,
   attachExisting,
   bulkAddKeywords,
+  suggestBudgets,
 } from "@/lib/pipeline";
 import type { KeywordMatch, BulkResult } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
@@ -105,6 +106,14 @@ export async function updatePromptAction(id: string, subject: string, scenarioId
   await setAssetSubject(id, subject.trim());
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
+}
+
+/** LLM-size each object's 3D budget (face_limit / texture) for this scene. */
+export async function suggestBudgetsAction(scenarioId: string) {
+  const n = await suggestBudgets(scenarioId);
+  revalidatePath("/");
+  revalidatePath(`/scene/${scenarioId}`);
+  return { sized: n };
 }
 
 /** Batch enqueue image-to-3D for all uploaded objects without a model. */

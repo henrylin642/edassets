@@ -17,7 +17,7 @@ import { and, eq, sql, inArray, or, arrayContains } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { Asset } from "./db/schema";
 import { getConfig } from "./settings";
-import { buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements, generateLayoutConceptB64, generateTopViewB64, draftFromScript, extractSceneObjectsFromConcept } from "./openai";
+import { buildObjectPrompt, generateImageB64, generateConceptB64, translateObject, generateAltView, planPlacements, generateLayoutConceptB64, generateTopViewB64, draftFromScript, extractSceneObjectsFromConcept, suggestModelBudgets } from "./openai";
 import { uploadImage } from "./lig";
 import {
   imageToModel,
@@ -80,6 +80,7 @@ export async function createScene(script: string): Promise<CreateSceneResult> {
   // keyword objects come from the script now; scene objects come from the concept image later
   const keywordObjects: string[] = [];
   const skipped: string[] = [];
+  const created: Asset[] = [];
   for (const o of draft.keyword_objects) {
     if (!o.en?.trim()) continue;
     const [row] = await db
@@ -95,9 +96,12 @@ export async function createScene(script: string): Promise<CreateSceneResult> {
         status: "pending",
       })
       .onConflictDoNothing({ target: [asset.type, asset.tagKey] })
-      .returning({ id: asset.id });
-    (row ? keywordObjects : skipped).push(o.en.trim());
+      .returning();
+    if (row) { keywordObjects.push(o.en.trim()); created.push(row); }
+    else skipped.push(o.en.trim());
   }
+
+  await applyBudgetsSafe(created); // LLM-size each new keyword's 3D budget
 
   return { scenarioId, nameEn, sceneObjects: [], keywordObjects, skipped };
 }
@@ -114,6 +118,7 @@ export async function extractSceneObjects(scenarioId: string): Promise<number> {
 
   const objs = await extractSceneObjectsFromConcept(sc.conceptImageUrl, sc.script ?? "", config);
   let n = 0;
+  const created: Asset[] = [];
   for (const o of objs) {
     if (!o.en?.trim()) continue;
     const [row] = await db
@@ -130,9 +135,10 @@ export async function extractSceneObjects(scenarioId: string): Promise<number> {
         status: "pending",
       })
       .onConflictDoNothing({ target: [asset.type, asset.tagKey] })
-      .returning({ id: asset.id });
-    if (row) n++;
+      .returning();
+    if (row) { n++; created.push(row); }
   }
+  await applyBudgetsSafe(created); // LLM-size each new scene object's 3D budget
   return n;
 }
 
@@ -250,6 +256,48 @@ export async function generateSceneConcept(scenarioId: string): Promise<string> 
     await db.update(scenario).set({ conceptStatus: "failed" }).where(eq(scenario.id, scenarioId));
     throw err;
   }
+}
+
+// ── per-object 3D budget (LLM-suggested face_limit / texture size) ───────────
+/** LLM-size each asset's 3D budget and persist it. Returns how many were set. */
+async function applyBudgets(assets: Asset[], config: Awaited<ReturnType<typeof getConfig>>): Promise<number> {
+  const items = assets.map((a) => ({ en: a.nameEn, zh: a.nameZh, type: a.type }));
+  const budgets = await suggestModelBudgets(items, config);
+  let n = 0;
+  for (const a of assets) {
+    const b = budgets[a.nameEn.trim().toLowerCase()];
+    if (!b) continue;
+    await db
+      .update(asset)
+      .set({ recFaceLimit: b.faceLimit, recTextureSize: b.textureSize, model3dTier: b.tier, updatedAt: new Date() })
+      .where(eq(asset.id, a.id));
+    n++;
+  }
+  return n;
+}
+
+/** Best-effort budget sizing for newly-created objects (never fails the caller). */
+async function applyBudgetsSafe(assets: Asset[]): Promise<void> {
+  if (assets.length === 0) return;
+  try {
+    await applyBudgets(assets, await getConfig());
+  } catch {
+    // sizing is advisory; object creation must not fail on it
+  }
+}
+
+/** (Re)compute LLM 3D budgets for a whole scene's assets (origin + reused members). */
+export async function suggestBudgets(scenarioId: string): Promise<number> {
+  const config = await getConfig();
+  const direct = await db.select().from(asset).where(eq(asset.scenarioId, scenarioId));
+  const memberRows = await db
+    .select({ assetId: sceneAsset.assetId })
+    .from(sceneAsset)
+    .where(eq(sceneAsset.scenarioId, scenarioId));
+  const directIds = new Set(direct.map((d) => d.id));
+  const memberIds = memberRows.map((r) => r.assetId).filter((id) => !directIds.has(id));
+  const members = memberIds.length ? await db.select().from(asset).where(inArray(asset.id, memberIds)) : [];
+  return applyBudgets([...direct, ...members], config);
 }
 
 // ── background queue: enqueue + atomic claims ────────────────────────────────
@@ -394,12 +442,7 @@ export async function generate3d(id: string): Promise<Asset> {
     if (!imgRes.ok) throw new Error(`download image ${imgRes.status}`);
     const imgBuf = Buffer.from(await imgRes.arrayBuffer());
 
-    const tripoOpts = {
-      faceLimit: config.model3dFaceLimit,
-      textureSize: config.model3dTextureSize,
-      textureQuality: config.model3dTextureQuality,
-      pbr: config.model3dPbr,
-    };
+    const tripoOpts = tripoOptsForAsset(a, config);
 
     // multiview only when aux views exist for this asset; else single-image
     const sideBuf = a.hasSideView ? await loadView(a.id, "left") : null;
@@ -500,10 +543,11 @@ async function mergeModelMeta(id: string, patch: Record<string, unknown>): Promi
 }
 
 // ── async 3D state machine (Hobby-safe: each step < 60s) ─────────────────────
-function tripoOptsFromConfig(c: Awaited<ReturnType<typeof getConfig>>) {
+/** Tripo options for one asset: LLM-suggested budget wins, else global config. */
+function tripoOptsForAsset(a: Asset, c: Awaited<ReturnType<typeof getConfig>>) {
   return {
-    faceLimit: c.model3dFaceLimit,
-    textureSize: c.model3dTextureSize,
+    faceLimit: a.recFaceLimit ?? c.model3dFaceLimit,
+    textureSize: a.recTextureSize ?? c.model3dTextureSize,
     textureQuality: c.model3dTextureQuality,
     pbr: c.model3dPbr,
   };
@@ -515,7 +559,7 @@ export async function start3d(a: Asset): Promise<void> {
   try {
     if (!a.imageUrl) throw new Error("asset has no image yet");
     const imgBuf = Buffer.from(await (await fetch(a.imageUrl)).arrayBuffer());
-    const opts = tripoOptsFromConfig(config);
+    const opts = tripoOptsForAsset(a, config);
 
     // Multiview only when aux views exist for this asset (side + back, generated
     // manually via the side-view button); otherwise single-image.
@@ -849,9 +893,13 @@ export async function addObjectAuto(
     }
     // forced variant (or no collision): pick a free tag so multiple variants can coexist
     const tagKey = await nextVariantTag(baseTag);
-    return addObject(scenarioId, { type: input.type, nameEn: en, nameZh: zh || undefined, subject, tagKey });
+    const r = await addObject(scenarioId, { type: input.type, nameEn: en, nameZh: zh || undefined, subject, tagKey });
+    if (r.ok) await applyBudgetsSafe([r.asset]);
+    return r;
   }
-  return addObject(scenarioId, { type: input.type, nameEn: en, nameZh: zh || undefined, subject });
+  const r = await addObject(scenarioId, { type: input.type, nameEn: en, nameZh: zh || undefined, subject });
+  if (r.ok) await applyBudgetsSafe([r.asset]);
+  return r;
 }
 
 /** Process one queued item (image → concept → 3D). Returns true if it did work. */
