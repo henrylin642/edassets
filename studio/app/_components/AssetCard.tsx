@@ -100,6 +100,12 @@ export function AssetCard({ a }: { a: Asset }) {
             </div>
           )}
 
+          {a.modelStatus === "failed" && a.error && (
+            <div className="rounded bg-red-50 p-1 text-[10px] text-red-600" title={a.error}>
+              🧊 3D 失敗：{a.error}
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             <SideViewButton id={a.id} scenarioId={a.scenarioId ?? undefined} status={a.sideViewStatus} has={a.hasSideView} />
             <Make3dButton id={a.id} scenarioId={a.scenarioId ?? undefined} status={a.modelStatus} />
