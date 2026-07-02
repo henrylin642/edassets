@@ -656,7 +656,8 @@ export async function claimNextModelStart(): Promise<Asset | null> {
         model_status = 'requested'
         OR (model_status = 'generating' AND model_task_id IS NULL AND updated_at < now() - interval '3 minutes')
       )
-      AND (SELECT count(*)::int FROM ${asset} a2 WHERE a2.model_status = 'generating' AND a2.model_task_id IS NOT NULL) < ${MODEL_CONCURRENCY}
+      AND (SELECT count(*)::int FROM ${asset} a2 WHERE a2.model_status = 'generating'
+            AND (a2.model_task_id IS NOT NULL OR a2.updated_at >= now() - interval '3 minutes')) < ${MODEL_CONCURRENCY}
       ORDER BY updated_at LIMIT 1 FOR UPDATE SKIP LOCKED
     ) RETURNING id`);
   const id = (rows as unknown as { id: string }[])[0]?.id;
