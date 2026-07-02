@@ -1,5 +1,6 @@
 import type { Asset } from "@/lib/db/schema";
 import { toMB } from "@/lib/meshinfo";
+import { assetStage } from "@/lib/stage";
 import { ReviewButtons, Make3dButton, RegenButton, PromptEditor, GenerateButton, DeleteButton, SideViewButton } from "./Controls";
 
 const TIER_ZH: Record<string, string> = { simple: "簡單", normal: "一般", complex: "複雜" };
@@ -8,9 +9,14 @@ const TIER_ZH: Record<string, string> = { simple: "簡單", normal: "一般", co
 export function AssetCard({ a }: { a: Asset }) {
   const src =
     a.status === "uploaded" && a.imageUrl ? a.imageUrl : a.status === "review" ? `/api/preview/${a.id}` : null;
+  const stage = assetStage(a);
 
   return (
-    <div className="space-y-2 rounded-lg border border-gray-200 p-2">
+    <div id={`asset-${a.id}`} className={`space-y-2 rounded-lg border-2 ${stage.border} p-2`}>
+      <div className="flex items-center gap-1.5">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${stage.dot}`} />
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${stage.badge}`}>{stage.label}</span>
+      </div>
       <div className="relative aspect-square w-full overflow-hidden rounded bg-gray-50">
         {src ? (
           <img src={src} alt={a.nameEn} className="h-full w-full object-contain" />

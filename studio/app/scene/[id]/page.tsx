@@ -4,6 +4,7 @@ import { eq, asc, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { ConceptButton, ProcessNextButton, RegenAllButton, AddObjectForm, AutoRefresh, Batch3dButton, DeleteSceneButton, ReplanLayoutButton, ExtractObjectsButton, ImportKeywordsForm, SuggestBudgetsButton } from "@/app/_components/Controls";
 import { AssetCard } from "@/app/_components/AssetCard";
+import { WorkConsole } from "@/app/_components/WorkConsole";
 import { LayoutMap } from "@/app/_components/LayoutMap";
 import { SceneViewer } from "@/app/_components/SceneViewer";
 import { ensureWorker } from "@/lib/worker";
@@ -43,7 +44,7 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
     ) || ["requested", "generating"].includes(sc.conceptStatus);
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-6">
+    <main className="mx-auto max-w-6xl space-y-8 p-6 pb-16">
       <Link href="/" className="text-sm text-gray-500 hover:underline">← 返回</Link>
 
       <header className="space-y-4">
@@ -146,6 +147,10 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
 
       <Section title="情境物件 scene objects" hint="維持沉浸感的場景道具" items={sceneObjects} scenarioId={id} type="scene_object" addLabel="情境物件" />
       <Section title="關鍵字物件 keyword objects" hint="用戶練習用的關鍵字實物" items={keywordObjects} scenarioId={id} type="keyword" addLabel="關鍵字物件" />
+
+      <WorkConsole
+        items={assets.map((a) => ({ id: a.id, name: a.nameZh || a.nameEn, type: a.type, status: a.status, modelStatus: a.modelStatus }))}
+      />
     </main>
   );
 }
