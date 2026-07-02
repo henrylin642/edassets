@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { saveModelYawAction } from "../actions";
 
 /**
  * 3D preview with a facing-correction slider. Tripo models don't reliably face +Z,
- * so the admin rotates the model about Y until its front faces the camera; the value
- * is saved as model_yaw and exposed in the feed for the AR client to apply.
- * Fixed front camera (no auto-rotate) so the correction is judged consistently.
+ * so the admin rotates the model about Y (the slider / ±90 buttons) until its front
+ * faces the fixed front camera; the value auto-saves as model_yaw and is exposed in
+ * the feed for the AR client. Camera drag only inspects other sides (not saved).
  */
 export function ModelPreview({
   id,
@@ -20,17 +20,25 @@ export function ModelPreview({
   modelUrl: string;
   initialYaw: number;
 }) {
-  const norm = (v: number) => ((v % 360) + 360) % 360;
+  const norm = (v: number) => ((Math.round(v) % 360) + 360) % 360;
   const [yaw, setYaw] = useState(norm(initialYaw));
   const [saved, setSaved] = useState(norm(initialYaw));
   const [pending, start] = useTransition();
-  const dirty = yaw !== saved;
+  const yawRef = useRef(yaw);
 
-  const save = () =>
+  const setY = (y: number) => {
+    const n = norm(y);
+    yawRef.current = n;
+    setYaw(n);
+  };
+  // Persist the current yaw. Called on slider release / button press → "adjust = saved".
+  const commit = () =>
     start(async () => {
-      await saveModelYawAction(id, yaw, scenarioId);
-      setSaved(yaw);
+      const y = yawRef.current;
+      await saveModelYawAction(id, y, scenarioId);
+      setSaved(y);
     });
+  const bump = (d: number) => { setY(yaw + d); commit(); };
 
   const btn = "rounded border px-1.5 py-0.5 text-[10px] disabled:opacity-40";
 
@@ -54,23 +62,22 @@ export function ModelPreview({
           max={360}
           step={5}
           value={yaw}
-          onChange={(e) => setYaw(Number(e.target.value))}
+          onChange={(e) => setY(Number(e.target.value))}
+          onPointerUp={commit}
+          onKeyUp={commit}
           className="flex-1"
-          title="拖曳讓模型正面朝向鏡頭（AR 用）"
+          title="拖曳讓模型正面朝向鏡頭（放開即自動儲存）"
         />
       </div>
       <div className="flex flex-wrap items-center gap-1">
-        <button className={`${btn} border-gray-300 text-gray-600`} onClick={() => setYaw((y) => norm(y - 90))}>−90°</button>
-        <button className={`${btn} border-gray-300 text-gray-600`} onClick={() => setYaw((y) => norm(y + 90))}>+90°</button>
-        <button className={`${btn} border-gray-300 text-gray-500`} onClick={() => setYaw(0)}>歸零</button>
-        <button
-          disabled={pending || !dirty}
-          onClick={save}
-          className={`${btn} ml-auto border-pink-500 font-medium text-pink-600`}
-        >
-          {pending ? "儲存中…" : dirty ? "💾 儲存朝向" : "✓ 已儲存"}
-        </button>
+        <button className={`${btn} border-gray-300 text-gray-600`} onClick={() => bump(-90)}>−90°</button>
+        <button className={`${btn} border-gray-300 text-gray-600`} onClick={() => bump(90)}>+90°</button>
+        <button className={`${btn} border-gray-300 text-gray-500`} onClick={() => { setY(0); commit(); }}>歸零</button>
+        <span className="ml-auto text-[10px]">
+          {pending ? <span className="text-gray-400">儲存中…</span> : saved === yaw ? <span className="text-green-600">✓ 已儲存 {saved}°</span> : <span className="text-amber-600">未儲存</span>}
+        </span>
       </div>
+      <div className="text-[10px] text-gray-400">用滑桿/±90 調整正面朝向（自動儲存）· 直接拖曳模型只是檢視其他面</div>
     </div>
   );
 }
