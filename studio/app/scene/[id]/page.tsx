@@ -34,7 +34,7 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
   const sceneObjects = assets.filter((a) => a.type === "scene_object");
   const keywordObjects = assets.filter((a) => a.type === "keyword");
   const pending = assets.filter((a) => a.status === "pending").length;
-  const no3d = assets.filter((a) => a.status === "uploaded" && a.modelStatus === "none").length;
+  const no3d = assets.filter((a) => a.status === "uploaded" && (a.modelStatus === "none" || a.modelStatus === "failed")).length;
   const busy =
     assets.some(
       (a) =>

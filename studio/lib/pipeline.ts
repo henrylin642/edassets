@@ -35,6 +35,10 @@ const { scenario, asset, generationJob, sideView, sceneAsset } = schema;
 
 export type PipelineMode = "review" | "auto";
 
+/** Max concurrent in-flight Tripo 3D tasks. Tripo caps concurrent generations and
+ * returns HTTP 429 when exceeded, so we serialize (1 at a time) to stay under it. */
+const MODEL_CONCURRENCY = 1;
+
 const PENDING_DIR = path.join(process.cwd(), "out", "pending");
 const pendingPath = (id: string) => path.join(PENDING_DIR, `${id}.png`);
 
@@ -311,9 +315,10 @@ export async function requestConcept(scenarioId: string): Promise<void> {
   await db.update(scenario).set({ conceptStatus: "requested" }).where(eq(scenario.id, scenarioId));
 }
 
-/** Batch: enqueue image-to-3D for all uploaded assets lacking a model (optional scene scope). */
+/** Batch: enqueue image-to-3D for all uploaded assets without a model, incl. retrying
+ * previously-failed ones (e.g. Tripo 429). Optional scene scope. */
 export async function request3dAll(scenarioId?: string): Promise<number> {
-  const conds = [eq(asset.status, "uploaded"), eq(asset.modelStatus, "none")];
+  const conds = [eq(asset.status, "uploaded"), inArray(asset.modelStatus, ["none", "failed"])];
   if (scenarioId) conds.push(eq(asset.scenarioId, scenarioId));
   const rows = await db
     .update(asset)
@@ -599,6 +604,12 @@ export async function start3d(a: Asset): Promise<void> {
     await updateAsset(a.id, { modelTaskId: taskId, modelStatus: "generating", error: null });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Tripo 429 = concurrency/rate limit exceeded → not a real failure; requeue to
+    // retry later (the concurrency gate + poll cadence keeps retries paced).
+    if (/\b429\b|exceeded the limit|rate limit/i.test(msg)) {
+      await updateAsset(a.id, { modelStatus: "requested", error: msg, modelTaskId: null });
+      return;
+    }
     await db.insert(generationJob).values({ assetId: a.id, stage: "model", status: "failed", provider: "tripo", error: msg });
     await updateAsset(a.id, { modelStatus: "failed", error: msg, modelTaskId: null });
   }
@@ -633,14 +644,19 @@ export async function poll3d(a: Asset): Promise<void> {
   }
 }
 
-/** Claim a 3D job to START: 'requested', or a stalled 'generating' with no task. */
+/** Claim a 3D job to START: 'requested', or a stalled 'generating' with no task.
+ * Gated by MODEL_CONCURRENCY — won't start a new Tripo task while enough are in
+ * flight (task created, not yet polled done), so we stay under Tripo's 429 limit. */
 export async function claimNextModelStart(): Promise<Asset | null> {
   const rows = await db.execute(sql`
     UPDATE ${asset} SET model_status = 'generating', updated_at = now()
     WHERE id = (
       SELECT id FROM ${asset}
-      WHERE model_status = 'requested'
-         OR (model_status = 'generating' AND model_task_id IS NULL AND updated_at < now() - interval '3 minutes')
+      WHERE (
+        model_status = 'requested'
+        OR (model_status = 'generating' AND model_task_id IS NULL AND updated_at < now() - interval '3 minutes')
+      )
+      AND (SELECT count(*)::int FROM ${asset} a2 WHERE a2.model_status = 'generating' AND a2.model_task_id IS NOT NULL) < ${MODEL_CONCURRENCY}
       ORDER BY updated_at LIMIT 1 FOR UPDATE SKIP LOCKED
     ) RETURNING id`);
   const id = (rows as unknown as { id: string }[])[0]?.id;
