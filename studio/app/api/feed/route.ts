@@ -70,6 +70,9 @@ export async function GET(req: Request) {
     "3dmodel_url": a.modelUrl, // null until 3D generated
     "3dmodel_asset_id": a.ligModelId,
     model_format: a.modelUrl ? "glb" : null,
+    // AR facing correction: rotate the model this many degrees about +Y (Unity: up)
+    // so its front faces the user. Falls back to the studio-wide default.
+    model_yaw: a.modelYaw ?? config.model3dYawDefault,
     model_ready: a.modelStatus === "done",
     model_status: a.modelStatus, // none | requested | generating | done | failed
     model: a.modelUrl

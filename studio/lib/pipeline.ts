@@ -310,6 +310,12 @@ export async function request3d(id: string): Promise<Asset> {
   return updateAsset(id, { modelStatus: "requested", error: null });
 }
 
+/** Save an asset's AR facing correction (deg about Y, normalized 0–359). */
+export async function setModelYaw(id: string, yaw: number): Promise<Asset> {
+  const norm = ((Math.round(yaw) % 360) + 360) % 360;
+  return updateAsset(id, { modelYaw: norm });
+}
+
 /** Enqueue concept-image (re)generation. */
 export async function requestConcept(scenarioId: string): Promise<void> {
   await db.update(scenario).set({ conceptStatus: "requested" }).where(eq(scenario.id, scenarioId));

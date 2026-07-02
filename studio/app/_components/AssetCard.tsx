@@ -1,12 +1,13 @@
 import type { Asset } from "@/lib/db/schema";
 import { toMB } from "@/lib/meshinfo";
 import { assetStage } from "@/lib/stage";
+import { ModelPreview } from "./ModelPreview";
 import { ReviewButtons, Make3dButton, RegenButton, PromptEditor, GenerateButton, DeleteButton, SideViewButton } from "./Controls";
 
 const TIER_ZH: Record<string, string> = { simple: "簡單", normal: "一般", complex: "複雜" };
 
 /* eslint-disable @next/next/no-img-element */
-export function AssetCard({ a }: { a: Asset }) {
+export function AssetCard({ a, yawDefault = 0 }: { a: Asset; yawDefault?: number }) {
   const src =
     a.status === "uploaded" && a.imageUrl ? a.imageUrl : a.status === "review" ? `/api/preview/${a.id}` : null;
   const stage = assetStage(a);
@@ -82,13 +83,7 @@ export function AssetCard({ a }: { a: Asset }) {
 
           {a.modelStatus === "done" && a.modelUrl && (
             <div className="space-y-1 rounded bg-cyan-50 p-1">
-              {/* Fixed front view (no auto-rotate) so the model's facing can be judged
-                  consistently. camera-orbit 0deg = model-viewer +Z; drag to inspect. */}
-              {/* @ts-expect-error model-viewer is a web component */}
-              <model-viewer src={a.modelUrl} camera-controls disable-zoom
-                camera-orbit="0deg 80deg auto" interaction-prompt="none"
-                style={{ width: "100%", height: "140px", backgroundColor: "#f3f4f6" }} />
-              <div className="text-[10px] text-gray-400">固定正前方視角（+Z）· 可拖曳檢視其他面</div>
+              <ModelPreview id={a.id} scenarioId={a.scenarioId ?? undefined} modelUrl={a.modelUrl} initialYaw={a.modelYaw ?? yawDefault} />
               <div className="text-[10px] text-cyan-700">
                 {a.modelFaces ? `${a.modelFaces.toLocaleString()} 面` : ""}
                 {a.modelBytes ? ` · ${toMB(a.modelBytes)} MB` : ""}

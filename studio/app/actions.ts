@@ -26,6 +26,7 @@ import {
   attachExisting,
   bulkAddKeywords,
   suggestBudgets,
+  setModelYaw,
 } from "@/lib/pipeline";
 import type { KeywordMatch, BulkResult } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
@@ -104,6 +105,13 @@ export async function regenSceneAction(scenarioId: string) {
 export async function updatePromptAction(id: string, subject: string, scenarioId?: string) {
   if (!subject.trim()) return;
   await setAssetSubject(id, subject.trim());
+  revalidatePath("/");
+  if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
+}
+
+/** Save an asset's AR facing correction (deg about Y). */
+export async function saveModelYawAction(id: string, yaw: number, scenarioId?: string) {
+  await setModelYaw(id, yaw);
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
 }
@@ -265,6 +273,7 @@ export async function saveSettingsAction(formData: FormData) {
     model3dTextureSize: Number(formData.get("model3dTextureSize") ?? 512),
     model3dTextureQuality: formData.get("model3dTextureQuality") as StudioConfig["model3dTextureQuality"],
     model3dPbr: formData.get("model3dPbr") === "on",
+    model3dYawDefault: Number(formData.get("model3dYawDefault") ?? 0),
     arLeft: Number(formData.get("arLeft") ?? 4),
     arRight: Number(formData.get("arRight") ?? 4),
     arFront: Number(formData.get("arFront") ?? 6),

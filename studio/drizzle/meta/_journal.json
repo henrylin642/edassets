@@ -113,6 +113,13 @@
       "when": 1782956581743,
       "tag": "0015_slow_pandemic",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1782984547268,
+      "tag": "0016_brown_yellow_claw",
+      "breakpoints": true
     }
   ]
 }

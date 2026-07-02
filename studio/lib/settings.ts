@@ -24,6 +24,8 @@ export interface StudioConfig {
   model3dTextureSize: number; // texture px (e.g. 512)
   model3dTextureQuality: "standard" | "detailed";
   model3dPbr: boolean;
+  /** default AR facing correction (deg about Y) applied to models with no per-object yaw */
+  model3dYawDefault: number;
   // ── AR scene space (meters; Unity left-handed, Y up; Tom at origin facing +Z) ──
   arLeft: number; // meters to Tom's left (−X)
   arRight: number; // meters to Tom's right (+X)
@@ -49,6 +51,7 @@ export const DEFAULT_CONFIG: StudioConfig = {
   model3dTextureSize: 512,
   model3dTextureQuality: "standard",
   model3dPbr: true,
+  model3dYawDefault: 0,
   arLeft: 4,
   arRight: 4,
   arFront: 6,

@@ -145,8 +145,8 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
         );
       })()}
 
-      <Section title="情境物件 scene objects" hint="維持沉浸感的場景道具" items={sceneObjects} scenarioId={id} type="scene_object" addLabel="情境物件" />
-      <Section title="關鍵字物件 keyword objects" hint="用戶練習用的關鍵字實物" items={keywordObjects} scenarioId={id} type="keyword" addLabel="關鍵字物件" />
+      <Section title="情境物件 scene objects" hint="維持沉浸感的場景道具" items={sceneObjects} scenarioId={id} type="scene_object" addLabel="情境物件" yawDefault={config.model3dYawDefault} />
+      <Section title="關鍵字物件 keyword objects" hint="用戶練習用的關鍵字實物" items={keywordObjects} scenarioId={id} type="keyword" addLabel="關鍵字物件" yawDefault={config.model3dYawDefault} />
 
       <WorkConsole
         items={assets.map((a) => ({ id: a.id, name: a.nameZh || a.nameEn, type: a.type, status: a.status, modelStatus: a.modelStatus }))}
@@ -155,16 +155,16 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
   );
 }
 
-function Section({ title, hint, items, scenarioId, type, addLabel }: {
+function Section({ title, hint, items, scenarioId, type, addLabel, yawDefault }: {
   title: string; hint: string; items: (typeof schema.asset.$inferSelect)[];
-  scenarioId: string; type: "scene_object" | "keyword"; addLabel: string;
+  scenarioId: string; type: "scene_object" | "keyword"; addLabel: string; yawDefault: number;
 }) {
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold">{title} <span className="text-sm font-normal text-gray-400">— {hint}（{items.length}）</span></h2>
       {items.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {items.map((a) => <AssetCard key={a.id} a={a} />)}
+          {items.map((a) => <AssetCard key={a.id} a={a} yawDefault={yawDefault} />)}
         </div>
       )}
       <AddObjectForm scenarioId={scenarioId} type={type} label={addLabel} />

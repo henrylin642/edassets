@@ -83,7 +83,12 @@ export default async function SettingsPage() {
             <label className="flex items-center gap-2 pt-6 text-sm">
               <input type="checkbox" name="model3dPbr" defaultChecked={cfg.model3dPbr} /> 啟用 PBR 材質（關閉可縮小檔案）
             </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">AR 朝向預設 (°)</span>
+              <input type="number" name="model3dYawDefault" defaultValue={cfg.model3dYawDefault} min={0} max={359} step={5} className={`${field} w-full`} />
+            </label>
           </div>
+          <p className="text-[11px] text-gray-400">未逐物件校正的 3D 模型，AR 端套用此朝向角度（繞 Y）；可在物件卡用滑桿逐個微調並儲存。</p>
           <p className="text-[11px] text-gray-400">多視圖（側視圖）改為逐物件控制：在物件卡按「🪞 生成側視圖」即用多視圖，否則用單圖。只有薄/扁物件才需要。</p>
           <p className="text-xs text-gray-400">目標 1–3MB：面數 ≤ 30000 + 貼圖 512 + standard。檔案仍偏大時可關閉 PBR。</p>
         </fieldset>

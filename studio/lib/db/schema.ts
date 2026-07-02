@@ -142,6 +142,9 @@ export const asset = pgTable(
     recFaceLimit: integer("rec_face_limit"),
     recTextureSize: integer("rec_texture_size"),
     model3dTier: text("model_3d_tier"), // short LLM label, e.g. simple | normal | complex
+    /** AR facing correction: degrees to rotate the model about Y so its front faces
+     * the user. Set via the card's orientation slider; feed exposes it for the AR client. */
+    modelYaw: integer("model_yaw"),
 
     /** captured metrics */
     imageWidth: integer("image_width"),
