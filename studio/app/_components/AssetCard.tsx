@@ -82,9 +82,13 @@ export function AssetCard({ a }: { a: Asset }) {
 
           {a.modelStatus === "done" && a.modelUrl && (
             <div className="space-y-1 rounded bg-cyan-50 p-1">
+              {/* Fixed front view (no auto-rotate) so the model's facing can be judged
+                  consistently. camera-orbit 0deg = model-viewer +Z; drag to inspect. */}
               {/* @ts-expect-error model-viewer is a web component */}
-              <model-viewer src={a.modelUrl} camera-controls auto-rotate disable-zoom
+              <model-viewer src={a.modelUrl} camera-controls disable-zoom
+                camera-orbit="0deg 80deg auto" interaction-prompt="none"
                 style={{ width: "100%", height: "140px", backgroundColor: "#f3f4f6" }} />
+              <div className="text-[10px] text-gray-400">固定正前方視角（+Z）· 可拖曳檢視其他面</div>
               <div className="text-[10px] text-cyan-700">
                 {a.modelFaces ? `${a.modelFaces.toLocaleString()} 面` : ""}
                 {a.modelBytes ? ` · ${toMB(a.modelBytes)} MB` : ""}
