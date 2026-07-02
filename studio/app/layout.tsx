@@ -29,7 +29,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js" strategy="afterInteractive" />
+        {/* Pin version: unversioned unpkg served 4.3.x which spams console with debug logs. */}
+        <Script type="module" src="https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js" strategy="afterInteractive" />
         {children}
       </body>
     </html>
