@@ -167,8 +167,9 @@ export function RegenButton({ id, scenarioId }: { id: string; scenarioId?: strin
   const [pending, start] = useTransition();
   return (
     <button disabled={pending} onClick={() => start(async () => { await regenAction(id, scenarioId); })}
+      title="清掉現有圖片，重新用 gpt-image-1 生一張（不影響 3D 模型）"
       className="rounded border border-gray-400 px-2 py-1 text-xs font-medium text-gray-600 disabled:opacity-50">
-      {pending ? "…" : "↻ 重生"}
+      {pending ? "…" : "↻ 重生圖片"}
     </button>
   );
 }
