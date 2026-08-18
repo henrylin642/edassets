@@ -29,7 +29,8 @@ DATABASE_URL="postgres://…cloud…" npm run db:migrate
 | `TRIPO_API_KEY` | Tripo **server** key (`tsk_…`) |
 | `AUTH_SECRET` | random 32 bytes — `openssl rand -base64 32` |
 | `AUTH_ALLOWED_EMAIL_DOMAINS` | e.g. `lig.com.tw,ezuse.ai` |
-| `RESEND_API_KEY` | Resend key (`re_…`), for password-reset mail |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | whole service-account key file, pasted as one line |
+| `GMAIL_SENDER` | `noreply@ezuse.ai` — real Workspace mailbox to send as |
 | `AUTH_EMAIL_FROM` | e.g. `AR Assets Studio <noreply@ezuse.ai>` |
 | `APP_URL` | `https://edassets.ezuse.ai` — used for links in emails |
 | `MIGRATE_SECRET` | random string, protects `/api/migrate` |
@@ -153,13 +154,40 @@ would deadlock the first deploy).
 
 ### Password reset
 
-`/forgot-password` mails a link via Resend. The token is single use, valid 60 minutes,
-and only its SHA-256 hash is stored — a database leak cannot be replayed into account
-takeover. The reply is identical whether or not the address has an account, so the
-form cannot be used to enumerate staff.
+`/forgot-password` mails a link. The token is single use, valid 60 minutes, and only
+its SHA-256 hash is stored — a database leak cannot be replayed into account takeover.
+The reply is identical whether or not the address has an account, so the form cannot
+be used to enumerate staff.
 
-Resend requires the sending domain to be verified: add `ezuse.ai` in the Resend
-dashboard and publish the DKIM/SPF records it gives you, otherwise mail is rejected.
+#### Mail goes out through Google Workspace (Gmail API)
+
+No third-party mail vendor and **no DNS changes** — ezuse.ai already has its SPF/DKIM
+set up for Workspace. `lib/email.ts` signs a service-account JWT with `node:crypto`
+(zero dependencies), exchanges it for an access token, and POSTs the message to the
+Gmail API over HTTPS. Plain HTTPS matters here: an SMTP connection through a
+serverless cold start is markedly more fragile.
+
+> Why not SMTP + app password: Google disabled legacy-password SMTP in March 2025 and
+> now treats app passwords as a fallback for devices that cannot do OAuth, revocable
+> by admin policy. The API is the supported path.
+
+One-time setup:
+
+1. **GCP** → pick/create a project → enable the **Gmail API**.
+2. **IAM & Admin → Service Accounts** → create one (e.g. `ar-studio-mailer`) →
+   Keys → Add key → **JSON**. Keep the file; paste its contents into
+   `GOOGLE_SERVICE_ACCOUNT_JSON`.
+3. On that service account, note the **Unique ID (client ID)** — a long number.
+4. **Workspace Admin** (admin.google.com, super-admin required) → Security → Access
+   and data control → **API controls** → **Domain-wide delegation** → Add new:
+   - Client ID: the number from step 3
+   - OAuth scopes: `https://www.googleapis.com/auth/gmail.send`
+5. Make sure `GMAIL_SENDER` is a mailbox that actually exists in the domain
+   (e.g. create `noreply@ezuse.ai`). The service account sends *as* that mailbox.
+
+Troubleshooting: `invalid_grant` almost always means step 4 was missed or
+`GMAIL_SENDER` does not exist; `403` from the Gmail API means step 1 was missed.
+The UI surfaces both in Chinese via `lib/errmsg.ts`.
 
 ## 8. Open items
 

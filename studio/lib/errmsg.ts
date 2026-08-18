@@ -56,6 +56,20 @@ export function friendlyError(err: unknown): string {
     return `內容被 OpenAI 拒絕，請修改文案或 prompt 後再試：${msg}`;
   }
 
+  // ── Gmail / Google Workspace（密碼重設信）─────────────────────────────
+  if (/GOOGLE_SERVICE_ACCOUNT_JSON|GMAIL_SENDER/.test(msg)) return msg; // already actionable
+  if (/Google OAuth 400/.test(msg) && /invalid_grant/.test(msg)) {
+    return "Google 拒絕服務帳號授權（invalid_grant）。多半是 Workspace 管理主控台尚未替這個服務帳號的 client ID 授權 gmail.send 範圍，或 GMAIL_SENDER 不是真實存在的信箱。";
+  }
+  if (/Google OAuth 401|invalid_client/.test(msg)) {
+    return "服務帳號憑證無效，請確認 GOOGLE_SERVICE_ACCOUNT_JSON 是完整且未過期的金鑰檔。";
+  }
+  if (/Gmail API 403/.test(msg)) {
+    return "Gmail API 回 403：請確認 GCP 專案已啟用 Gmail API，且該服務帳號已在 Workspace 取得網域全域委派授權。";
+  }
+  if (/Gmail API 400/.test(msg)) return `Gmail API 拒絕這封信：${msg}`;
+  if (/Google OAuth|Gmail API/.test(msg)) return `寄信失敗：${msg}`;
+
   // ── LiG ───────────────────────────────────────────────────────────────
   if (/LIG_BASE|LIG_EMAIL|LIG_PASSWORD/.test(msg)) {
     return "LiG 環境變數未設定（LIG_BASE / LIG_EMAIL / LIG_PASSWORD）。";
