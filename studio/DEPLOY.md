@@ -62,7 +62,50 @@ stays `generating`. Options:
 | Review preview files | `out/pending/*` on disk | n/a (auto mode) |
 | DB | Docker Postgres :5433 | cloud Postgres |
 
-## 5. Feed
+## 5. Custom domain — `edassets.ezuse.ai`
 
-Public JSON catalog for downstream platforms: `https://<your-app>.vercel.app/api/feed`
-(supports `?all=1 ?since=ISO ?scene=<tag> ?flat=1`).
+Production runs on **https://edassets.ezuse.ai** (the `*.vercel.app` URL keeps working
+as an alias). Setup is DNS-only; no code change is needed.
+
+1. **Vercel** → project `edassets` → Settings → **Domains** → Add `edassets.ezuse.ai`.
+   Vercel shows the record to create — for a subdomain it is a `CNAME`.
+2. **ezuse.ai DNS** (same zone as `comfyapi.ezuse.ai`) → add:
+
+   | Type | Name | Value | TTL |
+   |---|---|---|---|
+   | CNAME | `edassets` | `cname.vercel-dns.com` | auto / 300 |
+
+   > Use the exact target Vercel displays — it occasionally differs per project.
+3. Wait for Vercel to show **Valid Configuration** (usually < 5 min, DNS TTL can make
+   it longer). SSL is issued automatically via Let's Encrypt.
+
+### Gotchas
+
+- **Cloudflare**: if ezuse.ai is on Cloudflare, set the record to **DNS only (grey
+  cloud)**. Orange-cloud proxying in front of Vercel breaks certificate issuance and
+  causes redirect loops.
+- **CAA records**: if the zone has `CAA` records, `letsencrypt.org` must be allowed or
+  Vercel cannot issue the certificate.
+- **Existing record**: make sure no `A`/`CNAME` for `edassets` already exists.
+- Set the new domain as the **Production** domain in Vercel so redirects and
+  `VERCEL_URL` point at it.
+
+## 6. Feed
+
+Public JSON catalog for downstream platforms (Unity / AR Foundation):
+
+```
+https://edassets.ezuse.ai/api/feed
+```
+
+Supports `?all=1 ?since=ISO ?scene=<tag> ?flat=1`.
+
+> The feed is **unauthenticated**, and so is the whole admin UI — anyone with the URL
+> can create and delete scenes and burn OpenAI / Tripo credits. Before advertising the
+> ezuse.ai address, put the admin pages behind auth (see the open item below).
+
+## 7. Open items
+
+- **No access control.** `/`, `/scene/[id]`, `/settings` and every Server Action are
+  public. Once the app sits on a company domain this needs at minimum a shared-password
+  middleware, with `/api/feed` left open for the AR client.
