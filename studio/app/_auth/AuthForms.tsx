@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loginAction, registerAction, forgotPasswordAction, resetPasswordAction, logoutAction } from "./actions";
+import { loginAction, registerAction, resetPasswordAction, logoutAction } from "./actions";
 import type { ActionResult } from "@/lib/errmsg";
 
 const input =
@@ -106,25 +106,6 @@ export function RegisterForm({ domains }: { domains: string[] }) {
       <button className={primary} disabled={pending}>{pending ? "建立中…" : "建立帳號"}</button>
       <div className="text-xs text-gray-500">
         已經有帳號了？<Link href="/login" className="hover:underline">登入</Link>
-      </div>
-    </form>
-  );
-}
-
-export function ForgotPasswordForm() {
-  const [pending, start] = useTransition();
-  const [res, setRes] = useState<ActionResult | null>(null);
-
-  return (
-    <form
-      className="space-y-3"
-      action={(fd) => start(async () => { setRes(null); setRes(await forgotPasswordAction(fd)); })}
-    >
-      <input className={input} name="email" type="email" placeholder="註冊時用的 Email" autoComplete="username" required />
-      <Alert r={res} />
-      <button className={primary} disabled={pending}>{pending ? "寄送中…" : "寄送重設連結"}</button>
-      <div className="text-xs text-gray-500">
-        想起來了？<Link href="/login" className="hover:underline">回到登入</Link>
       </div>
     </form>
   );

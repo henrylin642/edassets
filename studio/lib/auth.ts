@@ -18,6 +18,7 @@
 import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { db, schema } from "./db";
 import type { AppUser } from "./db/schema";
@@ -200,50 +201,76 @@ export async function requireUser(): Promise<AppUser> {
   return user;
 }
 
+/**
+ * Same gate, but sends the browser to /login instead of throwing — the better
+ * UX for a stale tab whose session expired.
+ *
+ * NOTE: redirect() signals by throwing NEXT_REDIRECT, so call this OUTSIDE any
+ * try/catch (in particular outside guard()) or the navigation gets swallowed.
+ */
+export async function requireUserOrRedirect(): Promise<AppUser> {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
 // ── password reset ─────────────────────────────────────────────────────
 /** Reset links are valid for 60 minutes. */
 const RESET_TTL_MS = 60 * 60 * 1000;
-/** At most one reset mail per address per this window, to stop mail-bombing. */
-const RESET_THROTTLE_MS = 2 * 60 * 1000;
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
+/** Public base URL, for building the reset link an admin hands to a colleague. */
+export function appUrl(): string {
+  const explicit = process.env.APP_URL?.replace(/\/$/, "");
+  if (explicit) return explicit;
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+  return vercel ? `https://${vercel}` : "https://edassets.ezuse.ai";
+}
+
 /**
- * Issue a reset token for an address. Returns the raw token to email, or null
- * when there is no such user or one was just issued — callers must show the
- * same message either way so the page cannot be used to test for accounts.
+ * Issue a single-use reset link for a user. There is no self-service
+ * "forgot password" email: an admin generates this in /users and passes it to
+ * the person over an existing trusted channel (LINE / Slack).
+ *
+ * That deliberately avoids holding any long-lived mail credential — this org's
+ * GCP policy forbids service-account keys, and an OAuth refresh token would
+ * silently die after six months unused, which is exactly the lifetime of a
+ * password-reset feature.
+ *
+ * Only the SHA-256 hash of the token is stored, so a database leak cannot be
+ * replayed into account takeover.
  */
-export async function createPasswordResetToken(email: string): Promise<{ token: string; user: AppUser } | null> {
-  const user = await findUserByEmail(email);
-  if (!user) return null;
-
-  const recent = (
-    await db
-      .select({ createdAt: passwordReset.createdAt })
-      .from(passwordReset)
-      .where(
-        and(
-          eq(passwordReset.userId, user.id),
-          gt(passwordReset.createdAt, new Date(Date.now() - RESET_THROTTLE_MS)),
-        ),
-      )
-      .limit(1)
-  )[0];
-  if (recent) return null;
-
+export async function issueResetLink(userId: string): Promise<{ url: string; expiresAt: Date }> {
   const token = randomBytes(32).toString("base64url");
-  await db.insert(passwordReset).values({
-    tokenHash: sha256(token),
-    userId: user.id,
-    expiresAt: new Date(Date.now() + RESET_TTL_MS),
-  });
+  const expiresAt = new Date(Date.now() + RESET_TTL_MS);
+  await db.insert(passwordReset).values({ tokenHash: sha256(token), userId, expiresAt });
 
   // Opportunistic cleanup of dead rows; cheap and keeps the table small.
   await db
     .delete(passwordReset)
     .where(or(lt(passwordReset.expiresAt, new Date()), sql`${passwordReset.usedAt} is not null`));
 
-  return { token, user };
+  return { url: `${appUrl()}/reset-password?token=${encodeURIComponent(token)}`, expiresAt };
+}
+
+/** Every account, for the admin user list. Never selects password_hash. */
+export async function listUsers() {
+  return db
+    .select({
+      id: appUser.id,
+      email: appUser.email,
+      name: appUser.name,
+      createdAt: appUser.createdAt,
+      lastLoginAt: appUser.lastLoginAt,
+    })
+    .from(appUser)
+    .orderBy(appUser.createdAt);
+}
+
+/** Remove an account. password_reset rows cascade. */
+export async function deleteUser(id: string): Promise<void> {
+  await db.delete(appUser).where(eq(appUser.id, id));
 }
 
 export type ResetOutcome =

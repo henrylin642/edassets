@@ -15,13 +15,10 @@ import { redirect } from "next/navigation";
 import {
   authenticate,
   consumePasswordResetToken,
-  createPasswordResetToken,
   endSession,
-  normalizeEmail,
   registerUser,
   startSession,
 } from "@/lib/auth";
-import { sendPasswordResetEmail } from "@/lib/email";
 import { friendlyError, type ActionResult } from "@/lib/errmsg";
 
 /** Keep the post-login redirect on this site — never bounce to an attacker's URL. */
@@ -65,27 +62,6 @@ export async function registerAction(formData: FormData): Promise<ActionResult &
     return { ok: true, next: "/" };
   } catch (err) {
     return { ok: false, message: friendlyError(err) };
-  }
-}
-
-/**
- * Always reports the same thing, whether or not the address has an account and
- * whether or not a mail was throttled — otherwise this form is an oracle for
- * "does this person have an account here".
- */
-export async function forgotPasswordAction(formData: FormData): Promise<ActionResult> {
-  const email = normalizeEmail(String(formData.get("email") ?? ""));
-  const generic = "如果這個 email 有帳號，重設連結已經寄出，請收信（也看一下垃圾郵件匣）。";
-  if (!email) return { ok: false, message: "請輸入 email。" };
-
-  try {
-    const issued = await createPasswordResetToken(email);
-    if (issued) await sendPasswordResetEmail(email, issued.token);
-    return { ok: true, message: generic };
-  } catch (err) {
-    // A genuine mail-delivery failure IS worth surfacing — otherwise the admin
-    // waits forever for a mail that was never going to arrive.
-    return { ok: false, message: `寄信失敗：${friendlyError(err)}` };
   }
 }
 

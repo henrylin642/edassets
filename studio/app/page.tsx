@@ -54,6 +54,7 @@ export default async function Home() {
         </div>
         <div className="flex gap-2">
           <a href="/api/feed" target="_blank" rel="noreferrer" className="rounded border border-gray-300 px-3 py-1.5 text-sm">🔗 JSON Feed</a>
+          <Link href="/users" className="rounded border border-gray-300 px-3 py-1.5 text-sm">👥 使用者</Link>
           <Link href="/settings" className="rounded border border-gray-300 px-3 py-1.5 text-sm">⚙ 設定中心</Link>
           {me && <UserMenu email={me.email} />}
         </div>

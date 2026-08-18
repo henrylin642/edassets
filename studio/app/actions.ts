@@ -32,7 +32,7 @@ import type { KeywordMatch, BulkResult } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
-import { currentUser } from "@/lib/auth";
+import { requireUserOrRedirect } from "@/lib/auth";
 import { guard, friendlyError, type ActionResult } from "@/lib/errmsg";
 
 export type { ActionResult };
@@ -50,9 +50,7 @@ export type { ActionResult };
  * by throwing NEXT_REDIRECT and a catch block would swallow the navigation.
  */
 async function auth() {
-  const user = await currentUser();
-  if (!user) redirect("/login");
-  return user;
+  return requireUserOrRedirect();
 }
 
 export async function createSceneAction(formData: FormData): Promise<ActionResult> {
