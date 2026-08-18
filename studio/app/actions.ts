@@ -32,14 +32,20 @@ import type { KeywordMatch, BulkResult } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
+import { guard, friendlyError, type ActionResult } from "@/lib/errmsg";
 
-export async function createSceneAction(formData: FormData) {
+export type { ActionResult };
+
+export async function createSceneAction(formData: FormData): Promise<ActionResult> {
   const script = String(formData.get("script") ?? formData.get("venue") ?? "").trim();
-  if (!script) return;
-  const r = await createScene(script);
-  ensureWorker(); // 文案 → 概念圖 (background)
-  revalidatePath("/");
-  revalidatePath(`/scene/${r.scenarioId}`);
+  if (!script) return { ok: false, message: "請先輸入文案或場域名稱。" };
+  return guard(async () => {
+    const r = await createScene(script);
+    ensureWorker(); // 文案 → 概念圖 (background)
+    revalidatePath("/");
+    revalidatePath(`/scene/${r.scenarioId}`);
+    return `已建立「${r.nameEn}」，關鍵字物件 ${r.keywordObjects.length} 個，概念圖生成中…`;
+  });
 }
 
 export async function generateConceptAction(scenarioId: string) {
@@ -117,11 +123,13 @@ export async function saveModelYawAction(id: string, yaw: number, scenarioId?: s
 }
 
 /** LLM-size each object's 3D budget (face_limit / texture) for this scene. */
-export async function suggestBudgetsAction(scenarioId: string) {
-  const n = await suggestBudgets(scenarioId);
-  revalidatePath("/");
-  revalidatePath(`/scene/${scenarioId}`);
-  return { sized: n };
+export async function suggestBudgetsAction(scenarioId: string): Promise<ActionResult> {
+  return guard(async () => {
+    const n = await suggestBudgets(scenarioId);
+    revalidatePath("/");
+    revalidatePath(`/scene/${scenarioId}`);
+    return `已估算 ${n} 個`;
+  });
 }
 
 /** Batch enqueue image-to-3D for all uploaded objects without a model. */
@@ -154,28 +162,39 @@ export async function deleteSceneAction(scenarioId: string) {
 }
 
 /** Re-plan AR placement for an existing scene's objects (for scenes created before placement). */
-export async function replanLayoutAction(scenarioId: string) {
-  await replanLayout(scenarioId);
-  revalidatePath(`/scene/${scenarioId}`);
+export async function replanLayoutAction(scenarioId: string): Promise<ActionResult> {
+  return guard(async () => {
+    const n = await replanLayout(scenarioId);
+    revalidatePath(`/scene/${scenarioId}`);
+    return `已重排 ${n} 個物件的佈局`;
+  });
 }
 
 /** Vision: extract scene objects from the concept image (new flow step 3). */
-export async function extractObjectsAction(scenarioId: string) {
-  const n = await extractSceneObjects(scenarioId);
-  revalidatePath(`/scene/${scenarioId}`);
-  return { added: n };
+export async function extractObjectsAction(scenarioId: string): Promise<ActionResult> {
+  return guard(async () => {
+    const n = await extractSceneObjects(scenarioId);
+    revalidatePath(`/scene/${scenarioId}`);
+    return `新增 ${n} 個情境物件`;
+  });
 }
 
 /** Generate a layout-faithful concept image from placement coordinates (synchronous). */
-export async function generateLayoutConceptAction(scenarioId: string) {
-  await generateLayoutConcept(scenarioId);
-  revalidatePath(`/scene/${scenarioId}`);
+export async function generateLayoutConceptAction(scenarioId: string): Promise<ActionResult> {
+  return guard(async () => {
+    await generateLayoutConcept(scenarioId);
+    revalidatePath(`/scene/${scenarioId}`);
+    return "佈局概念圖已生成";
+  });
 }
 
 /** Generate a top-down (bird's-eye) reference view from placement (synchronous). */
-export async function generateTopViewAction(scenarioId: string) {
-  await generateTopView(scenarioId);
-  revalidatePath(`/scene/${scenarioId}`);
+export async function generateTopViewAction(scenarioId: string): Promise<ActionResult> {
+  return guard(async () => {
+    await generateTopView(scenarioId);
+    revalidatePath(`/scene/${scenarioId}`);
+    return "上視圖已生成";
+  });
 }
 
 /** Persist hand-edited placements from the 3D editor. */
@@ -212,7 +231,7 @@ export async function addObjectAction(formData: FormData): Promise<AddObjectResu
     if (r.reason === "duplicate") return { status: "duplicate", matches: r.matches, resolved: r.resolved };
     return { status: r.reason };
   } catch (e) {
-    return { status: "error", message: e instanceof Error ? e.message : String(e) };
+    return { status: "error", message: friendlyError(e) };
   }
 }
 

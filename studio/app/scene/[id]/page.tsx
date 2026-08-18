@@ -12,6 +12,8 @@ import { getConfig } from "@/lib/settings";
 import { toMB } from "@/lib/meshinfo";
 
 export const dynamic = "force-dynamic";
+// Server Actions on this page chain LLM calls; default Hobby duration is too short.
+export const maxDuration = 60;
 const { asset, scenario, sceneAsset } = schema;
 
 export default async function ScenePage({ params }: { params: Promise<{ id: string }> }) {

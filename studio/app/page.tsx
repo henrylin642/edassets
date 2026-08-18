@@ -6,6 +6,8 @@ import { AssetCard } from "./_components/AssetCard";
 import { ensureWorker } from "@/lib/worker";
 
 export const dynamic = "force-dynamic";
+// Server Actions on this page chain LLM calls; default Hobby duration is too short.
+export const maxDuration = 60;
 const { asset, scenario } = schema;
 
 async function getData() {

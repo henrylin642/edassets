@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
+import type { ActionResult } from "../actions";
 import { useRouter } from "next/navigation";
 import {
   createSceneAction,
@@ -54,10 +55,25 @@ export function AutoRefresh({ active, ms = 4000 }: { active: boolean; ms?: numbe
   ) : null;
 }
 
+
+/** Inline result message next to an action button: green on success, red on failure. */
+function Msg({ r, tone = "text-gray-600" }: { r: ActionResult | null; tone?: string }) {
+  if (!r) return null;
+  return (
+    <span className={`text-xs ${r.ok ? tone : "text-red-600"}`} title={r.message}>
+      {r.ok ? r.message : `⚠ ${r.message}`}
+    </span>
+  );
+}
+
 export function CreateSceneForm() {
   const [pending, start] = useTransition();
+  const [res, setRes] = useState<ActionResult | null>(null);
   return (
-    <form action={(fd) => start(() => createSceneAction(fd))} className="space-y-2">
+    <form
+      action={(fd) => start(async () => { setRes(null); setRes(await createSceneAction(fd)); })}
+      className="space-y-2"
+    >
       <textarea
         name="script"
         rows={3}
@@ -71,6 +87,16 @@ export function CreateSceneForm() {
         </button>
         <span className="text-xs text-gray-400">建立後自動生概念圖 → 再到場景頁「從概念圖萃取情境物件」</span>
       </div>
+      {res && !res.ok && (
+        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+          ⚠ 建立失敗：{res.message}
+        </div>
+      )}
+      {res?.ok && res.message && (
+        <div className="rounded border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-700">
+          ✓ {res.message}
+        </div>
+      )}
     </form>
   );
 }
@@ -103,36 +129,36 @@ export function Batch3dButton({ scenarioId, count }: { scenarioId?: string; coun
 
 export function SuggestBudgetsButton({ scenarioId, count }: { scenarioId: string; count: number }) {
   const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<ActionResult | null>(null);
   return (
     <span className="inline-flex items-center gap-2">
       <button
         disabled={pending || count === 0}
         title="用 AI 依每個物件的複雜度，估算建議的 3D 面數上限與貼圖大小（生 3D 時採用）"
-        onClick={() => start(async () => { const r = await suggestBudgetsAction(scenarioId); setMsg(`已估算 ${r.sized} 個`); })}
+        onClick={() => start(async () => { setMsg(null); setMsg(await suggestBudgetsAction(scenarioId)); })}
         className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
       >
         {pending ? "🧮 估算中…" : "🧮 估算 3D 建議 (LLM)"}
       </button>
-      {msg && <span className="text-xs text-emerald-700">{msg}</span>}
+      <Msg r={msg} tone="text-emerald-700" />
     </span>
   );
 }
 
 export function ExtractObjectsButton({ scenarioId, hasConcept, count }: { scenarioId: string; hasConcept: boolean; count: number }) {
   const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<ActionResult | null>(null);
   return (
     <span className="inline-flex items-center gap-2">
       <button
         disabled={pending || !hasConcept}
         title={hasConcept ? "用 AI 視覺讀概念圖，萃取畫面中的情境物件並估算佈局" : "請先生成概念圖"}
-        onClick={() => start(async () => { const r = await extractObjectsAction(scenarioId); setMsg(`新增 ${r.added} 個情境物件`); })}
+        onClick={() => start(async () => { setMsg(null); setMsg(await extractObjectsAction(scenarioId)); })}
         className="rounded bg-teal-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
       >
         {pending ? "🔍 讀概念圖萃取中…" : count > 0 ? "↻ 再次從概念圖萃取" : "🔍 從概念圖萃取情境物件"}
       </button>
-      {msg && <span className="text-xs text-teal-700">{msg}</span>}
+      <Msg r={msg} tone="text-teal-700" />
     </span>
   );
 }
@@ -140,14 +166,18 @@ export function ExtractObjectsButton({ scenarioId, hasConcept, count }: { scenar
 export function ConceptButton({ scenarioId, has, status }: { scenarioId: string; has: boolean; status?: string }) {
   const [pending, start] = useTransition();
   const busy = status === "requested" || status === "generating";
+  const failed = status === "failed";
   return (
-    <button
-      disabled={pending || busy}
-      onClick={() => start(async () => { await generateConceptAction(scenarioId); })}
-      className="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-    >
-      {busy ? "🎨 概念圖生成中…" : has ? "↻ 重生概念圖" : "🎨 生成概念圖 (Tom)"}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button
+        disabled={pending || busy}
+        onClick={() => start(async () => { await generateConceptAction(scenarioId); })}
+        className={`rounded px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50 ${failed ? "bg-red-600" : "bg-amber-600"}`}
+      >
+        {busy ? "🎨 概念圖生成中…" : failed ? "⚠ 概念圖失敗，重試" : has ? "↻ 重生概念圖" : "🎨 生成概念圖 (Tom)"}
+      </button>
+      {failed && <span className="text-xs text-red-600">背景生成失敗，原因請看 Vercel Runtime Logs</span>}
+    </span>
   );
 }
 
@@ -383,37 +413,49 @@ export function SideViewButton({ id, scenarioId, status, has }: { id: string; sc
 
 export function ReplanLayoutButton({ scenarioId, count }: { scenarioId: string; count: number }) {
   const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<ActionResult | null>(null);
   return (
-    <button disabled={pending || count === 0}
-      onClick={() => start(async () => { await replanLayoutAction(scenarioId); })}
-      title="用 AI 把現有情境物件排進座標（不重生圖）"
-      className="rounded border border-cyan-600 px-3 py-1.5 text-xs font-medium text-cyan-700 disabled:opacity-50">
-      {pending ? "排佈局中…" : `🗺 重算佈局（${count}）`}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button disabled={pending || count === 0}
+        onClick={() => start(async () => { setMsg(null); setMsg(await replanLayoutAction(scenarioId)); })}
+        title="用 AI 把現有情境物件排進座標（不重生圖）"
+        className="rounded border border-cyan-600 px-3 py-1.5 text-xs font-medium text-cyan-700 disabled:opacity-50">
+        {pending ? "排佈局中…" : `🗺 重算佈局（${count}）`}
+      </button>
+      <Msg r={msg} tone="text-cyan-700" />
+    </span>
   );
 }
 
 export function LayoutConceptButton({ scenarioId, has, count }: { scenarioId: string; has: boolean; count: number }) {
   const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<ActionResult | null>(null);
   return (
-    <button disabled={pending || count === 0}
-      onClick={() => start(async () => { await generateLayoutConceptAction(scenarioId); })}
-      title="依佈局座標生成一張使用者視角的概念圖（約 30s）"
-      className="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
-      {pending ? "🎨 依佈局生成中…（約 30s）" : has ? "↻ 重生佈局概念圖" : "🎨 依佈局生成概念圖"}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button disabled={pending || count === 0}
+        onClick={() => start(async () => { setMsg(null); setMsg(await generateLayoutConceptAction(scenarioId)); })}
+        title="依佈局座標生成一張使用者視角的概念圖（約 30s）"
+        className="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+        {pending ? "🎨 依佈局生成中…（約 30s）" : has ? "↻ 重生佈局概念圖" : "🎨 依佈局生成概念圖"}
+      </button>
+      <Msg r={msg} tone="text-amber-700" />
+    </span>
   );
 }
 
 export function TopViewButton({ scenarioId, has, count }: { scenarioId: string; has: boolean; count: number }) {
   const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<ActionResult | null>(null);
   return (
-    <button disabled={pending || count === 0}
-      onClick={() => start(async () => { await generateTopViewAction(scenarioId); })}
-      title="依佈局座標+概念圖生成一張俯瞰參考圖（約 30s）"
-      className="rounded bg-sky-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
-      {pending ? "🛰 生成上視圖中…（約 30s）" : has ? "↻ 重生上視圖" : "🛰 生成上視圖"}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button disabled={pending || count === 0}
+        onClick={() => start(async () => { setMsg(null); setMsg(await generateTopViewAction(scenarioId)); })}
+        title="依佈局座標+概念圖生成一張俯瞰參考圖（約 30s）"
+        className="rounded bg-sky-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+        {pending ? "🛰 生成上視圖中…（約 30s）" : has ? "↻ 重生上視圖" : "🛰 生成上視圖"}
+      </button>
+      <Msg r={msg} tone="text-sky-700" />
+    </span>
   );
 }
 
