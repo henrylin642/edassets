@@ -120,6 +120,13 @@
       "when": 1782984547268,
       "tag": "0016_brown_yellow_claw",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787037026285,
+      "tag": "0017_add_auth_tables",
+      "breakpoints": true
     }
   ]
 }

@@ -217,6 +217,46 @@ export const sceneAsset = pgTable(
   (t) => [primaryKey({ columns: [t.scenarioId, t.assetId] }), index("scene_asset_scene_idx").on(t.scenarioId)],
 );
 
+// ── app_user (admin console accounts) ──────────────────────────────────
+// Registration is gated by an email-domain allowlist (AUTH_ALLOWED_EMAIL_DOMAINS);
+// see lib/auth.ts. Passwords are scrypt hashes — never store anything reversible.
+export const appUser = pgTable(
+  "app_user",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** always stored lowercased + trimmed (see normalizeEmail) */
+    email: text("email").notNull(),
+    /** "scrypt:<N>:<saltB64>:<hashB64>" — see lib/auth.ts */
+    passwordHash: text("password_hash").notNull(),
+    name: text("name"),
+    /** Bumping this invalidates every outstanding session token for the user
+     * (password change / "log out everywhere"), because the value is baked into
+     * the signed cookie and re-checked server-side on every request. */
+    tokenVersion: integer("token_version").notNull().default(0),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("app_user_email_uq").on(t.email)],
+);
+
+// ── password_reset ─────────────────────────────────────────────────────
+// Only the SHA-256 *hash* of the emailed token is stored, so a database leak
+// cannot be replayed into account takeover. Single-use (used_at) + short TTL.
+export const passwordReset = pgTable(
+  "password_reset",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("password_reset_user_idx").on(t.userId)],
+);
+
 // ── app_setting (single-row config for the settings center) ─────────────
 export const appSetting = pgTable("app_setting", {
   id: integer("id").primaryKey().default(1),
@@ -232,3 +272,6 @@ export type NewAsset = typeof asset.$inferInsert;
 export type GenerationJob = typeof generationJob.$inferSelect;
 export type NewGenerationJob = typeof generationJob.$inferInsert;
 export type SceneAsset = typeof sceneAsset.$inferSelect;
+export type AppUser = typeof appUser.$inferSelect;
+export type NewAppUser = typeof appUser.$inferInsert;
+export type PasswordReset = typeof passwordReset.$inferSelect;

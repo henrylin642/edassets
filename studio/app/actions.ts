@@ -32,11 +32,31 @@ import type { KeywordMatch, BulkResult } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
+import { currentUser } from "@/lib/auth";
 import { guard, friendlyError, type ActionResult } from "@/lib/errmsg";
 
 export type { ActionResult };
 
+/**
+ * Every action below is an admin operation that mutates data or spends money on
+ * OpenAI / Tripo, so each one gates itself.
+ *
+ * This is NOT redundant with proxy.ts. Next 16's docs are explicit: Server
+ * Functions are POSTs to the route they live on, so a Proxy matcher change — or
+ * simply moving an action to another route — silently removes Proxy coverage.
+ * Authorization has to live in the function.
+ *
+ * redirect() is called OUTSIDE guard() everywhere it is used, because it works
+ * by throwing NEXT_REDIRECT and a catch block would swallow the navigation.
+ */
+async function auth() {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
 export async function createSceneAction(formData: FormData): Promise<ActionResult> {
+  await auth();
   const script = String(formData.get("script") ?? formData.get("venue") ?? "").trim();
   if (!script) return { ok: false, message: "請先輸入文案或場域名稱。" };
   return guard(async () => {
@@ -49,6 +69,7 @@ export async function createSceneAction(formData: FormData): Promise<ActionResul
 }
 
 export async function generateConceptAction(scenarioId: string) {
+  await auth();
   await requestConcept(scenarioId); // enqueue; background worker generates
   ensureWorker();
   revalidatePath(`/scene/${scenarioId}`);
@@ -57,6 +78,7 @@ export async function generateConceptAction(scenarioId: string) {
 
 /** Enqueue all idle objects (global or one scene) → background worker generates. */
 export async function processNextAction(scenarioId?: string) {
+  await auth();
   await enqueueAllPending(scenarioId);
   ensureWorker();
   revalidatePath("/");
@@ -65,18 +87,21 @@ export async function processNextAction(scenarioId?: string) {
 }
 
 export async function approveAction(id: string, scenarioId?: string) {
+  await auth();
   await approveAsset(id);
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
 }
 
 export async function rejectAction(id: string, scenarioId?: string) {
+  await auth();
   await rejectAsset(id);
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
 }
 
 export async function request3dAction(id: string, scenarioId?: string) {
+  await auth();
   await request3d(id); // enqueue; background worker generates (~1-2 min)
   ensureWorker();
   revalidatePath("/");
@@ -84,6 +109,7 @@ export async function request3dAction(id: string, scenarioId?: string) {
 }
 
 export async function sideViewAction(id: string, scenarioId?: string) {
+  await auth();
   await requestSideView(id); // enqueue side-view generation (background)
   ensureWorker();
   revalidatePath("/");
@@ -91,24 +117,28 @@ export async function sideViewAction(id: string, scenarioId?: string) {
 }
 
 export async function clearSideViewAction(id: string, scenarioId?: string) {
+  await auth();
   await clearSideView(id); // 3D will use single-image
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
 }
 
 export async function regenAction(id: string, scenarioId?: string) {
+  await auth();
   await regenAsset(id);
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
 }
 
 export async function regenSceneAction(scenarioId: string) {
+  await auth();
   await regenScene(scenarioId);
   revalidatePath("/");
   revalidatePath(`/scene/${scenarioId}`);
 }
 
 export async function updatePromptAction(id: string, subject: string, scenarioId?: string) {
+  await auth();
   if (!subject.trim()) return;
   await setAssetSubject(id, subject.trim());
   revalidatePath("/");
@@ -117,6 +147,7 @@ export async function updatePromptAction(id: string, subject: string, scenarioId
 
 /** Save an asset's AR facing correction (deg about Y). */
 export async function saveModelYawAction(id: string, yaw: number, scenarioId?: string) {
+  await auth();
   await setModelYaw(id, yaw);
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
@@ -124,6 +155,7 @@ export async function saveModelYawAction(id: string, yaw: number, scenarioId?: s
 
 /** LLM-size each object's 3D budget (face_limit / texture) for this scene. */
 export async function suggestBudgetsAction(scenarioId: string): Promise<ActionResult> {
+  await auth();
   return guard(async () => {
     const n = await suggestBudgets(scenarioId);
     revalidatePath("/");
@@ -134,6 +166,7 @@ export async function suggestBudgetsAction(scenarioId: string): Promise<ActionRe
 
 /** Batch enqueue image-to-3D for all uploaded objects without a model. */
 export async function batch3dAction(scenarioId?: string) {
+  await auth();
   await request3dAll(scenarioId);
   ensureWorker();
   revalidatePath("/");
@@ -142,6 +175,7 @@ export async function batch3dAction(scenarioId?: string) {
 
 /** Enqueue one object for background generation. */
 export async function generateAssetAction(id: string, scenarioId?: string) {
+  await auth();
   await enqueueAsset(id);
   ensureWorker();
   revalidatePath("/");
@@ -149,6 +183,7 @@ export async function generateAssetAction(id: string, scenarioId?: string) {
 }
 
 export async function deleteAssetAction(id: string, scenarioId?: string) {
+  await auth();
   await deleteAsset(id);
   revalidatePath("/");
   if (scenarioId) revalidatePath(`/scene/${scenarioId}`);
@@ -156,6 +191,7 @@ export async function deleteAssetAction(id: string, scenarioId?: string) {
 
 /** Delete an entire scene and all its objects, then go back to the dashboard. */
 export async function deleteSceneAction(scenarioId: string) {
+  await auth();
   await deleteScene(scenarioId);
   revalidatePath("/");
   redirect("/");
@@ -163,6 +199,7 @@ export async function deleteSceneAction(scenarioId: string) {
 
 /** Re-plan AR placement for an existing scene's objects (for scenes created before placement). */
 export async function replanLayoutAction(scenarioId: string): Promise<ActionResult> {
+  await auth();
   return guard(async () => {
     const n = await replanLayout(scenarioId);
     revalidatePath(`/scene/${scenarioId}`);
@@ -172,6 +209,7 @@ export async function replanLayoutAction(scenarioId: string): Promise<ActionResu
 
 /** Vision: extract scene objects from the concept image (new flow step 3). */
 export async function extractObjectsAction(scenarioId: string): Promise<ActionResult> {
+  await auth();
   return guard(async () => {
     const n = await extractSceneObjects(scenarioId);
     revalidatePath(`/scene/${scenarioId}`);
@@ -181,6 +219,7 @@ export async function extractObjectsAction(scenarioId: string): Promise<ActionRe
 
 /** Generate a layout-faithful concept image from placement coordinates (synchronous). */
 export async function generateLayoutConceptAction(scenarioId: string): Promise<ActionResult> {
+  await auth();
   return guard(async () => {
     await generateLayoutConcept(scenarioId);
     revalidatePath(`/scene/${scenarioId}`);
@@ -190,6 +229,7 @@ export async function generateLayoutConceptAction(scenarioId: string): Promise<A
 
 /** Generate a top-down (bird's-eye) reference view from placement (synchronous). */
 export async function generateTopViewAction(scenarioId: string): Promise<ActionResult> {
+  await auth();
   return guard(async () => {
     await generateTopView(scenarioId);
     revalidatePath(`/scene/${scenarioId}`);
@@ -202,6 +242,7 @@ export async function savePlacementsAction(
   scenarioId: string,
   items: { id: string; placement: { x: number; y?: number; z: number; rotationY: number; sizeM: number } }[],
 ) {
+  await auth();
   await savePlacements(items);
   revalidatePath(`/scene/${scenarioId}`);
 }
@@ -215,6 +256,7 @@ export type AddObjectResult =
 
 /** Manually add a custom object to a scene. Returns a status for UI feedback. */
 export async function addObjectAction(formData: FormData): Promise<AddObjectResult> {
+  await auth();
   const scenarioId = String(formData.get("scenarioId") ?? "");
   const type = String(formData.get("type") ?? "scene_object") as "scene_object" | "keyword";
   const nameEn = String(formData.get("nameEn") ?? "").trim();
@@ -267,6 +309,7 @@ function parseKeywordCsv(text: string): { nameZh?: string; nameEn?: string; subj
 
 /** Batch import keyword objects from CSV text (file uploaded client-side). */
 export async function importKeywordsAction(scenarioId: string, csvText: string): Promise<BulkResult> {
+  await auth();
   const rows = parseKeywordCsv(csvText);
   const r = await bulkAddKeywords(scenarioId, rows);
   revalidatePath(`/scene/${scenarioId}`);
@@ -275,12 +318,14 @@ export async function importKeywordsAction(scenarioId: string, csvText: string):
 
 /** Reuse an existing keyword asset in this scene (no regeneration). */
 export async function attachExistingAction(scenarioId: string, assetId: string): Promise<AddObjectResult> {
+  await auth();
   const a = await attachExisting(scenarioId, assetId);
   revalidatePath(`/scene/${scenarioId}`);
   return a ? { status: "added", name: a.nameEn } : { status: "error", message: "找不到該物件" };
 }
 
 export async function saveSettingsAction(formData: FormData) {
+  await auth();
   const patch: Partial<StudioConfig> = {
     sceneStylePreset: String(formData.get("sceneStylePreset") ?? "").trim(),
     keywordStylePreset: String(formData.get("keywordStylePreset") ?? "").trim(),

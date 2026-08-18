@@ -4,6 +4,8 @@ import { db, schema } from "@/lib/db";
 import { CreateSceneForm, ProcessNextButton, AutoRefresh, Batch3dButton } from "./_components/Controls";
 import { AssetCard } from "./_components/AssetCard";
 import { ensureWorker } from "@/lib/worker";
+import { currentUser } from "@/lib/auth";
+import { UserMenu } from "./_auth/AuthForms";
 
 export const dynamic = "force-dynamic";
 // Server Actions on this page chain LLM calls; default Hobby duration is too short.
@@ -39,7 +41,8 @@ function StatPill({ label, n, color }: { label: string; n: number; color: string
 }
 
 export default async function Home() {
-  const { byStatus, scenarios, perScene, review, busy, imgQueue, modelQueue, conceptQueue, batch3dCount } = await getData();
+  const [{ byStatus, scenarios, perScene, review, busy, imgQueue, modelQueue, conceptQueue, batch3dCount }, me] =
+    await Promise.all([getData(), currentUser()]);
   const counts = new Map(perScene.map((p) => [p.scenarioId, p]));
 
   return (
@@ -52,6 +55,7 @@ export default async function Home() {
         <div className="flex gap-2">
           <a href="/api/feed" target="_blank" rel="noreferrer" className="rounded border border-gray-300 px-3 py-1.5 text-sm">🔗 JSON Feed</a>
           <Link href="/settings" className="rounded border border-gray-300 px-3 py-1.5 text-sm">⚙ 設定中心</Link>
+          {me && <UserMenu email={me.email} />}
         </div>
       </header>
 

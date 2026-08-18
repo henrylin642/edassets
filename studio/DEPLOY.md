@@ -27,6 +27,17 @@ DATABASE_URL="postgres://…cloud…" npm run db:migrate
 | `LIG_EMAIL` / `LIG_PASSWORD` | LiG credentials |
 | `TRIPO_BASE` | `https://api.tripo3d.ai/v2/openapi` |
 | `TRIPO_API_KEY` | Tripo **server** key (`tsk_…`) |
+| `AUTH_SECRET` | random 32 bytes — `openssl rand -base64 32` |
+| `AUTH_ALLOWED_EMAIL_DOMAINS` | e.g. `lig.com.tw,ezuse.ai` |
+| `RESEND_API_KEY` | Resend key (`re_…`), for password-reset mail |
+| `AUTH_EMAIL_FROM` | e.g. `AR Assets Studio <noreply@ezuse.ai>` |
+| `APP_URL` | `https://edassets.ezuse.ai` — used for links in emails |
+| `MIGRATE_SECRET` | random string, protects `/api/migrate` |
+
+> **Two vars fail closed on purpose.** An unset/short `AUTH_SECRET` makes every
+> request unauthenticated (nobody can log in), and an empty
+> `AUTH_ALLOWED_EMAIL_DOMAINS` rejects *all* registrations. A misconfigured
+> deploy locks you out; it never silently opens the console to the internet.
 
 > `studio/assets/tom.png` is committed, so the concept-image reference works on Vercel.
 
@@ -104,8 +115,55 @@ Supports `?all=1 ?since=ISO ?scene=<tag> ?flat=1`.
 > can create and delete scenes and burn OpenAI / Tripo credits. Before advertising the
 > ezuse.ai address, put the admin pages behind auth (see the open item below).
 
-## 7. Open items
+## 7. Authentication
 
-- **No access control.** `/`, `/scene/[id]`, `/settings` and every Server Action are
-  public. Once the app sits on a company domain this needs at minimum a shared-password
-  middleware, with `/api/feed` left open for the AR client.
+Self-hosted accounts — no third-party auth service. Three moving parts:
+
+| File | Role |
+|---|---|
+| `lib/session.ts` | signed stateless cookie (`HMAC-SHA256` over `{uid, sv, exp}`) |
+| `lib/auth.ts` | scrypt passwords, domain allowlist, `currentUser()` / `requireUser()` |
+| `proxy.ts` | Next 16's renamed Middleware — optimistic redirect to `/login` |
+
+### Defence in depth, and why
+
+`proxy.ts` is only the first gate. Next.js Server Functions are POSTs to the route
+they live on, so changing a matcher — or moving an action to another route — can
+silently drop Proxy coverage. **Every Server Action in `app/actions.ts` therefore
+calls `auth()` itself**, which also re-checks `token_version` against the DB so a
+password reset instantly kills sessions on other devices.
+
+### Public surface
+
+Everything requires a session except: `/login`, `/register`, `/forgot-password`,
+`/reset-password`, `/api/feed` (the AR client reads it), `/api/env-check` (booleans
+only), and `/api/migrate` (has its own `MIGRATE_SECRET`; it must stay reachable
+because the `app_user` table is itself created by a migration — requiring login here
+would deadlock the first deploy).
+
+### First deploy — order matters
+
+1. Set every env var above (including `AUTH_SECRET`, `MIGRATE_SECRET`).
+2. Deploy.
+3. `GET https://edassets.ezuse.ai/api/migrate?secret=<MIGRATE_SECRET>` — creates
+   `app_user` and `password_reset`. **Do this before step 4** or registration 500s.
+4. Open `/register` and create your account with an allowlisted address.
+5. Optional: once the team has accounts, blank `AUTH_ALLOWED_EMAIL_DOMAINS` to close
+   registration entirely.
+
+### Password reset
+
+`/forgot-password` mails a link via Resend. The token is single use, valid 60 minutes,
+and only its SHA-256 hash is stored — a database leak cannot be replayed into account
+takeover. The reply is identical whether or not the address has an account, so the
+form cannot be used to enumerate staff.
+
+Resend requires the sending domain to be verified: add `ezuse.ai` in the Resend
+dashboard and publish the DKIM/SPF records it gives you, otherwise mail is rejected.
+
+## 8. Open items
+
+- **`/api/feed` is fully public**, including every image/model URL and the generation
+  prompts. That is deliberate so the Unity client can read it without credentials — if
+  the prompts are considered proprietary, put it behind a shared bearer token and
+  configure the AR client to send it.

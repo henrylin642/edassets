@@ -34,6 +34,11 @@ export function friendlyError(err: unknown): string {
   const msg = raw(err);
   const { status, code } = fields(err);
 
+  // ── auth ──────────────────────────────────────────────────────────────
+  if (/^UNAUTHENTICATED/.test(msg)) {
+    return "工作階段已過期，請重新登入後再操作。";
+  }
+
   // ── OpenAI ────────────────────────────────────────────────────────────
   if (code === "credit_balance_exhausted" || code === "insufficient_quota" || /insufficient_quota|no credits remaining/i.test(msg)) {
     return "OpenAI 帳戶額度已用盡，請到 platform.openai.com 的 Billing 頁面儲值後再試。";

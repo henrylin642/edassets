@@ -8,6 +8,8 @@ import { WorkConsole } from "@/app/_components/WorkConsole";
 import { LayoutMap } from "@/app/_components/LayoutMap";
 import { SceneViewer } from "@/app/_components/SceneViewer";
 import { ensureWorker } from "@/lib/worker";
+import { currentUser } from "@/lib/auth";
+import { UserMenu } from "@/app/_auth/AuthForms";
 import { getConfig } from "@/lib/settings";
 import { toMB } from "@/lib/meshinfo";
 
@@ -20,11 +22,12 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
   ensureWorker();
   const { id } = await params;
   // Independent reads in parallel.
-  const [scRows, config, direct, memberRows] = await Promise.all([
+  const [scRows, config, direct, memberRows, me] = await Promise.all([
     db.select().from(scenario).where(eq(scenario.id, id)),
     getConfig(),
     db.select().from(asset).where(eq(asset.scenarioId, id)).orderBy(asc(asset.nameEn)),
     db.select({ assetId: sceneAsset.assetId }).from(sceneAsset).where(eq(sceneAsset.scenarioId, id)),
+    currentUser(),
   ]);
   const sc = scRows[0];
   if (!sc) notFound();
@@ -47,7 +50,10 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-6 pb-16">
-      <Link href="/" className="text-sm text-gray-500 hover:underline">← 返回</Link>
+      <div className="flex items-center justify-between">
+        <Link href="/" className="text-sm text-gray-500 hover:underline">← 返回</Link>
+        {me && <UserMenu email={me.email} />}
+      </div>
 
       <header className="space-y-4">
         <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
