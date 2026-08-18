@@ -7,6 +7,14 @@ The Next.js app lives in **`studio/`**. Set that as the Vercel **Root Directory*
 Provision a cloud Postgres (Neon / Vercel Postgres / Supabase) and get its connection string.
 Then apply the schema:
 
+> **Use `db:migrate`, never `db:push`, against a real database.** `drizzle-kit push`
+> applies the schema directly *without* recording anything in
+> `drizzle.__drizzle_migrations`, so the database silently drifts ahead of its own
+> bookkeeping. The next `db:migrate` then replays already-applied migrations and dies
+> on `relation "…" already exists`. That happened to production here; the migrations
+> from 0009 on are now written to be idempotent so the state is recoverable, but the
+> rule stands: `push` is for throwaway local databases only.
+
 ```bash
 cd studio
 DATABASE_URL="postgres://…cloud…" npm run db:migrate
