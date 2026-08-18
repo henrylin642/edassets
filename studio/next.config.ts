@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // by lib/openai.ts for concept generation; otherwise it's missing on Vercel).
   outputFileTracingIncludes: {
     "/**": ["./assets/**"],
+    // The /api/migrate route reads these SQL files at runtime to migrate the DB.
+    "/api/migrate": ["./drizzle/**"],
   },
 };
 
