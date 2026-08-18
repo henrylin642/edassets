@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+.git
+.env
+.env.*
+!.env.example
+npm-debug.log*
+tsconfig.tsbuildinfo
+Dockerfile
+.dockerignore
+docker-compose*.yml
+Caddyfile

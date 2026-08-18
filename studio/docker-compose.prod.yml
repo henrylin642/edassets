@@ -1,0 +1,48 @@
+# Self-hosted production stack for edassets.ezuse.ai.
+#
+# Deliberately NOT docker-compose.yml — that file is the local dev Postgres and
+# is left alone. This stack has no database of its own: it reuses the existing
+# Neon instance, so the Vercel deployment and this one show the same data.
+#
+#   cp .env.example .env.production   # then fill it in
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edassets-app
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      # Shared database with the Vercel deployment → both must run "auto";
+      # see lib/worker.ts for why review mode cannot be shared.
+      PIPELINE_MODE: auto
+    expose:
+      - "3000"
+    volumes:
+      # Persist review-mode previews across restarts. Unused under auto mode,
+      # but harmless and means switching modes does not lose anything.
+      - app_out:/app/out
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: edassets-caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+
+volumes:
+  app_out:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

@@ -34,8 +34,11 @@ import { ensureWorker } from "@/lib/worker";
 import { saveConfig, type StudioConfig } from "@/lib/settings";
 import { requireUserOrRedirect } from "@/lib/auth";
 import { guard, friendlyError, type ActionResult } from "@/lib/errmsg";
-
-export type { ActionResult };
+// NOTE: do NOT re-export ActionResult from here. This file is "use server", and
+// Turbopack registers every export as a Server Action; a type re-export is
+// erased at compile time and leaves a dangling binding, failing the build with
+// "Export ActionResult doesn't exist in target module". Import it from
+// @/lib/errmsg directly instead.
 
 /**
  * Every action below is an admin operation that mutates data or spends money on

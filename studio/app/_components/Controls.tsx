@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import type { ActionResult } from "../actions";
+import type { ActionResult } from "@/lib/errmsg";
 import { useRouter } from "next/navigation";
 import {
   createSceneAction,

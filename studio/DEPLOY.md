@@ -71,40 +71,87 @@ stays `generating`. Options:
 | Review preview files | `out/pending/*` on disk | n/a (auto mode) |
 | DB | Docker Postgres :5433 | cloud Postgres |
 
-## 5. Custom domain — `edassets.ezuse.ai`
+## 5. Second deployment: self-hosted at `edassets.ezuse.ai`
 
-Production runs on **https://edassets.ezuse.ai** (the `*.vercel.app` URL keeps working
-as an alias). Setup is DNS-only; no code change is needed.
+The Vercel deployment stays exactly as it is, on its `*.vercel.app` URL. A second
+deployment of the same code runs on our own host at **https://edassets.ezuse.ai**,
+against the **same Neon database**, so both show the same data.
 
-1. **Vercel** → project `edassets` → Settings → **Domains** → Add `edassets.ezuse.ai`.
-   Vercel shows the record to create — for a subdomain it is a `CNAME`.
-2. **ezuse.ai DNS** (same zone as `comfyapi.ezuse.ai`) → add:
+### Why self-host at all
 
-   | Type | Name | Value | TTL |
-   |---|---|---|---|
-   | CNAME | `edassets` | `cname.vercel-dns.com` | auto / 300 |
+Vercel has no long-running process. That forced two workarounds that self-hosting
+simply removes:
 
-   > Use the exact target Vercel displays — it occasionally differs per project.
-3. Wait for Vercel to show **Valid Configuration** (usually < 5 min, DNS TTL can make
-   it longer). SSL is issued automatically via Let's Encrypt.
+| | Vercel | Self-hosted |
+|---|---|---|
+| Worker | client polls `/api/worker/tick`, one item per call | `lib/worker.ts` loops continuously |
+| Queue drains when no tab is open | no | yes |
+| Tripo 3D job (1–2 min) | must be split across sub-60s requests | runs straight through |
+| Boot | n/a | `instrumentation.ts` starts the worker before the first request |
 
-### Gotchas
+### Host recommendation
 
-- **Cloudflare**: if ezuse.ai is on Cloudflare, set the record to **DNS only (grey
-  cloud)**. Orange-cloud proxying in front of Vercel breaks certificate issuance and
-  causes redirect loops.
-- **CAA records**: if the zone has `CAA` records, `letsencrypt.org` must be allowed or
-  Vercel cannot issue the certificate.
-- **Existing record**: make sure no `A`/`CNAME` for `edassets` already exists.
-- Set the new domain as the **Production** domain in Vercel so redirects and
-  `VERCEL_URL` point at it.
+**Any Linux box with Docker.** The stack is two containers and reuses Neon, so it is
+undemanding — 1 vCPU / 2 GB is plenty; the heavy lifting is all in OpenAI, Tripo and
+LiG.
+
+- **Preferred: the existing ezuse.ai server** (the one behind `comfyapi.ezuse.ai`).
+  Zero new infrastructure or billing. If it already runs nginx/Caddy/Traefik, point a
+  vhost at the `app` container and drop the `caddy` service from the compose file.
+- **Otherwise: a small GCE VM** (e2-small) with a static IP, running the compose
+  stack as-is. Caddy handles TLS automatically.
+- **Not Cloud Run.** Keeping the worker alive there needs `min-instances=1` *and*
+  "CPU always allocated", which costs about what a small VM does while adding
+  constraints — you would be paying extra to emulate the persistent process that is
+  the whole reason for leaving Vercel.
+
+### Deploy
+
+```bash
+git clone https://github.com/henrylin642/edassets.git
+cd edassets/studio
+cp .env.example .env.production      # fill in: DATABASE_URL (the Neon one),
+                                     # OPENAI_*, LIG_*, TRIPO_*, AUTH_SECRET,
+                                     # AUTH_ALLOWED_EMAIL_DOMAINS, MIGRATE_SECRET,
+                                     # APP_URL=https://edassets.ezuse.ai
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+DNS: an **A record** for `edassets` → the host's public IP. Ports 80 and 443 must be
+reachable, or Caddy cannot complete the ACME challenge. (Note this is an A record to
+our own host — *not* a CNAME to Vercel; the Vercel deployment keeps its own URL.)
+
+### Running both at once — the one real hazard
+
+Both deployments drain the same queue. That is safe: every claim uses
+`FOR UPDATE SKIP LOCKED`, and Tripo concurrency is capped by a DB-wide count, so
+nothing is processed twice and the 429 ceiling still holds.
+
+The hazard is **pipeline mode**. In `review` mode the generated PNG is written to the
+local disk of whichever process made it, then waits for approval — and the *other*
+deployment cannot serve or approve that file. So a shared database must run `auto`
+everywhere. The Dockerfile and compose file both pin `PIPELINE_MODE=auto`, matching
+what Vercel already does; `next dev` still defaults to `review` for local work.
+
+### Updating
+
+```bash
+git pull && docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Migrations: run once from either deployment —
+`GET /api/migrate?secret=<MIGRATE_SECRET>` — since they share one database.
 
 ## 6. Feed
 
-Public JSON catalog for downstream platforms (Unity / AR Foundation):
+Public JSON catalog for downstream platforms (Unity / AR Foundation). Both
+deployments serve identical data (same database) — point the AR client at whichever
+is authoritative:
 
 ```
-https://edassets.ezuse.ai/api/feed
+https://edassets.ezuse.ai/api/feed      # self-hosted
+https://<project>.vercel.app/api/feed   # Vercel
 ```
 
 Supports `?all=1 ?since=ISO ?scene=<tag> ?flat=1`.
